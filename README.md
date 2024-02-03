@@ -21,5 +21,5 @@ It currently supports:
 
 ## Current Progress:
 RTL Modules:
-[x] General Purpose Register File
-[ ] ALU Unit
+- [x] General Purpose Register File
+- [ ] ALU Unit

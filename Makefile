@@ -12,3 +12,7 @@ run: sim
 
 clean:
 	rm -rf ./target/*
+
+
+alu: src/alu.v src/alu_test.v
+	iverlig -o $(output) src/alu.v src/alu_test.v
