@@ -22,4 +22,5 @@ It currently supports:
 ## Current Progress:
 RTL Modules:
 - [x] General Purpose Register File
-- [ ] ALU Unit
+- [x] ALU Unit
+- [ ] Register and ALU integration on simple datapath

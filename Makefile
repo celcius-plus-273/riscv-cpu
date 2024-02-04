@@ -1,18 +1,24 @@
-files = src/testbench.v src/register.v
-output = target/verilog_output_file
+files = src/datapath_test.v src/register.v src/alu.v src/decode.v src/execute.v src/writeback.v
+output = target/iverilog/tb
 
 all: run
 
-sim: $(files)
+cpu: $(files)
 	echo "running iverilog..."
 	iverilog -o $(output) $(files) 
 
-run: sim
+run: cpu
 	vvp $(output)
 
 clean:
 	rm -rf ./target/*
 
+alu_files = src/alu.v src/alu_test.v
+alu_output = target/iverilog/alu_test
+alu:
+	iverilog -o $(alu_output) $(alu_files)
 
-alu: src/alu.v src/alu_test.v
-	iverlig -o $(output) src/alu.v src/alu_test.v
+register_files = src/testbench.v src/register.v
+register_output = target/iverilog/reg_test
+reg:
+	iverilog -o $(register_output) $(register_files)

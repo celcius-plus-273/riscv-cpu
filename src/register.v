@@ -31,14 +31,16 @@ module register
         if (!reset_n) begin
             $display("[Time: %0t] resetting values in register file...", $time);
             for (i = 0; i < 32; i = i + 1) 
-                register_file[i] <= 32'b0;
+                register_file[i] <= 32'b1; // REMINDER TO CHANGE BACK TO 0. SET TO 1 FOR TESTING
         end
         else begin                
             // do we need to specify what happens if write is not enabled? -> seems like we don't have to!
             // [Intuition]: reg types can store values. these values are only updated when assigned (do not confuse with)
             // assignment operator). Therefore if we never assign a specific addr in the reg file, nothing should change! 
-            if (write_enable) 
-                register_file[write_addr] <= write_data;
+            if (write_enable) begin
+                register_file[write_addr] = write_data; // defined as blocking just for simulation debug
+                $display("[Time: %0t] Addr: %0d | Data: %0d", write_addr, register_file[write_addr]);
+            end
         end
     end
 
