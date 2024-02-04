@@ -1,5 +1,5 @@
 files = src/datapath_test.v src/register.v src/alu.v src/decode.v src/execute.v src/writeback.v
-output = target/iverilog/tb
+output = target/test
 
 all: run
 

@@ -75,25 +75,26 @@ module tb;
 
         .data_result(data_result_exwb),
         .reg_dest_in(reg_dest_exwb),
-        .write_enable_in(reg_dest_exwb),
+        .write_enable_in(write_enable_exwb),
 
         .write_data(write_data_wb),
         .write_addr(write_addr_wb),
-        .write_enable_out(write_addr_wb)
+        .write_enable_out(write_enable_wb)
     );
 
     initial begin
         // first thing to do is to reset the register file to all 0 values
-        write_enable_wb = 0;
         #5 reset_reg_n = 0;
         #5 reset_reg_n = 1;
 
         // plug in a single add instruction!
         instruction = 32'b0000000_00010_00001_000_00011_0110011;
-        $display("[Time: %0t] Inputted instruction add $3, $1, $2");
+        $display("[Time: %0t] Inputted instruction add $3, $1, $2", $time);
 
         // Instruction should be latched on time: 15 so we reset instruction back to NOP afterwards
         #10 instruction = 0;
+
+        #50 $finish;
     end
 
 endmodule

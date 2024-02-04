@@ -39,7 +39,7 @@ module register
             // assignment operator). Therefore if we never assign a specific addr in the reg file, nothing should change! 
             if (write_enable) begin
                 register_file[write_addr] = write_data; // defined as blocking just for simulation debug
-                $display("[Time: %0t] Addr: %0d | Data: %0d", write_addr, register_file[write_addr]);
+                $display("[Time: %0t] Addr: %0d | Data: %0d", $time, write_addr, register_file[write_addr]);
             end
         end
     end

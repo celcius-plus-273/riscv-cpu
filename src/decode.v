@@ -9,14 +9,14 @@ module decode
     */
 
     // control signals for decode
-    input wire clock;
-    input wire reset_reg_n; // this should always be held high to avoid resetting register file
+    input wire clock,
+    input wire reset_reg_n, // this should always be held high to avoid resetting register file
     
     // the main input to the decode stage is the instruction :)
     input wire [WORD_SIZE-1:0] instruction,
 
     // data input from writeback stage
-    input wire write_enable; // this signal comes form a writeback stage
+    input wire write_enable, // this signal comes form a writeback stage
     input wire [WORD_SIZE-1:0] write_data,
     input wire [4:0] write_addr,
 
@@ -67,7 +67,7 @@ module decode
     end
 
     // Instantiate the register file
-    register register_file #(WORD_SIZE = WORD_SIZE) (
+    register register_file (
         .clock(clock),
         .reset_n(reset_reg_n),
         .write_enable(write_enable),

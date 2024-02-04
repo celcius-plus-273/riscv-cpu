@@ -1,6 +1,6 @@
 module execute 
 #(
-    parameter WORD_SIZE = 32;
+    parameter WORD_SIZE = 32
 )
 (
     /*
@@ -54,7 +54,7 @@ module execute
     end
 
     // instantiate alu module
-    alu alu_unit #(WORD_SIZE = WORD_SIZE) (
+    alu  alu_unit (
         .clock(clock),
         .funct7(funct7_reg),
         .funct3(funct3_reg),
