@@ -1,23 +1,24 @@
-# RISCV CPU Project
+# RISCV CPU
 Welcome to my RISCV CPU project. 
 This repository hosts all of the source code used to simulate a 32 bit RISCV based CPU architecture.
 
 ## Motivation
 - Putting all of the concepts learned from Adanvced Comp. Arch. into practice.
-- Getting hands-on experience with microarchitecture outside of coursework
-- I want to deepen and solidify my understanding of general purpose computing before attempting Domain Specific computing
+- Getting hands-on experience with microarchitecture design outside of coursework
+- I want to deepen and solidify my understanding of general purpose computing
+- Build the foundations for implementing domain specific accelerators
 
 ## End Goals
 My end goal of this project is:
 - Out-of-Order Pipelined Microarchitecture
 - Multi-level Cache (L1 and L2)
-- I/O Subsystem
+- Some sort of I/O Subsystem
 - Synthesis on Xilinx Artix 7 Board
+
 **Note**: This goals could change along the exploration of this project.
 
 ## Supported ISA:
-It currently supports:
-- RV32I ISA
+- RISCV: RV32I
 
 ## Current Progress:
 RTL Modules:
