@@ -23,4 +23,9 @@ It currently supports:
 RTL Modules:
 - [x] General Purpose Register File
 - [x] ALU Unit
-- [ ] Register and ALU integration on simple datapath
+- [x] Register and ALU integration on simple datapath
+- [x] 3-stages: DECODE, EXECUTE, and WRITEBACK
+- [ ] Extend pipeline for I-Type instructions
+- [ ] Instruction register and PC (program counter)
+- [ ] Instruction memory -> L1 I-cache
+- [ ] Data Memory -> L1 D-cache
