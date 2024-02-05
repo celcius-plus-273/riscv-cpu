@@ -1,6 +1,6 @@
 module decode 
 #(
-    parameter WORD_SIZE = 32  
+    parameter WORD_SIZE = 32
 )
 (
     /* 
@@ -31,14 +31,29 @@ module decode
     output wire write_enable_decoded
 
 );
-    // the main purpose of the decode module is to decode the input instruction
-    // and send it as an input to the execute stage
+    ///////////////////////////////////
+    ////////// DECODE STAGE ///////////
+    ///////////////////////////////////
+
+    /** 
+     *  The main functions handled on the decode stage are:
+     *  1. Decode the given instruction input
+     *  2. Read the required values from the register file
+     *  3. Passthrough control signals like write_enable
+    */
 
     // OP will be used in this module to support other types of instructions
-    reg [6:0] opcode;
+    // We'll have both a wire and a reg for this
+    wire [6:0] opcode;
+    assign opcode = instruction[6:0];
 
-    // support for R-type only for now
-    reg [4:0] reg_source1 = 0;
+    // latch this value and sends it forward to future stages of the pipe which might need this value?
+    //reg [6:0] opcode_reg; // NOT SURE IF THIS IS NEEDED
+
+
+
+    // decode the remaining parts of the instruction
+    reg [4:0] reg_source1 = 0; 
     reg [4:0] reg_source2 = 0;
     reg [6:0] funct7 = 0;
     reg [2:0] funct3 = 0;
@@ -49,7 +64,7 @@ module decode
 
     // update all of the relevant information on the posedge of the clock
     always @ (posedge clock) begin
-        opcode <= instruction[6:0];
+        // [REVIEW: is this needed?] opcode_reg <= instruction[6:0]; // latch the opcode :)
 
         reg_source1 <= instruction[19:15];
         reg_source2 <= instruction[24:20];

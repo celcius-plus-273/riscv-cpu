@@ -30,3 +30,10 @@ RTL Modules:
 - [ ] Extend pipeline for I-Type instructions
 - [ ] Instruction memory -> L1 I-cache
 - [ ] Data Memory -> L1 D-cache
+
+
+## Notes & Questions
+- nop is defined as addi x0, x0, 0 -> 32'b0010_0110_0000_0000_0000_0000_0000_0000
+    - What happens if instruction 32'b0 is passed into decode? -> invalid?
+    - Do we need to make a distinction between NOP and invalid?
+    - If so, does it make sense to incorporate a valid bit as a passthrough value?

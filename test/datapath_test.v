@@ -9,6 +9,7 @@ module tb;
         else
             $display("Rising Edge: %0b -> %0b", clock, ~clock);
 
+        //$monitor("clock changed: %0b", clock);
         #(CLOCK_PERIOD/2) clock = ~clock;
     end
 
