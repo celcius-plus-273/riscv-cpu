@@ -1,5 +1,10 @@
+# ignore the simulation outputs
 target/test
 target/alu_test
 target/reg_test
+
+# ignore the vivado project
 vivado/
+
+# macos stuff?
 .DS_store
