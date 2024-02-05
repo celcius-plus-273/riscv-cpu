@@ -52,8 +52,8 @@ module register
         // does it make a different if I use blocking statements here?
         // bc this is sequential logic you are supposed to drive it with non-blockng statements...
         // why would this matter?
-        read_data1 <= register_file[read_addr1];
-        read_data2 <= register_file[read_addr2];
+        read_data1 <= (read_addr1 != 0) ? register_file[read_addr1] : 0;
+        read_data2 <= (read_addr2 != 0) ? register_file[read_addr2] : 0;
     end
 
 endmodule

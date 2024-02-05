@@ -1,4 +1,4 @@
-files = test/datapath_test.v src/register.v src/alu.v src/decode.v src/execute.v src/writeback.v
+files = test/datapath_test.v src/register.v src/alu.v src/decode.v src/execute.v src/writeback.v src/fetch.v src/i_register.v
 output = target/test
 
 all: run

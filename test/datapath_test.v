@@ -4,16 +4,51 @@ module tb;
     localparam CLOCK_PERIOD = 10;
     reg clock = 0;
     always begin
-        $display("Clock: %0b -> %0b", clock, ~clock);
+        if (clock)
+            $display("Falling Edge: %0b -> %0b", clock, ~clock);
+        else
+            $display("Rising Edge: %0b -> %0b", clock, ~clock);
+
         #(CLOCK_PERIOD/2) clock = ~clock;
+    end
+
+    // keep track of the cycle count (for debugging :))
+    integer cycles = 0;    
+    always begin
+        #(CLOCK_PERIOD) cycles = cycles + 1;
+        $display("Cycle count: %0d", cycles);
     end
 
     // pipeline input instruction -> this would be normally handled by the PC and fetch stages
     // for now we will simply pass in instructions manually
-    reg [31:0] instruction = 0;
+    //reg [31:0] instruction = 0;
+
+    // PC counter always starts at 0 and linearly executes the stored instructions on the
+    // instruction register
+    reg [31:0] pc = 0;
+    reg pc_enable = 0;
+
+    always begin
+        $display("[Time: %0t] Incrementing PC: %0d -> %0d", $time, pc, pc + 1);
+        #(CLOCK_PERIOD) pc <= pc_enable ? pc + 1 : pc;
+    end
     
     // register control signals
     reg reset_reg_n = 1;
+    reg reset_inst_n = 1;
+    reg enable_inst_reg = 1;
+
+    // fetch-decode wires
+    wire [31:0] instruction;
+
+    // FETCH STAGE
+    fetch fetch_stage (
+        .clock(clock),
+        .reset_n(reset_inst_n),
+        .enable(enable_inst_reg),
+        .pc(pc),
+        .instruction(instruction)
+    );
 
     // wb-decode wires
     wire write_enable_wb;
@@ -83,16 +118,16 @@ module tb;
     );
 
     initial begin
-        // first thing to do is to reset the register file to all 0 values
+        $display("Cycle count %0d", cycles); // initial cycle count output
+
+        // issue initial reset to register file (consumes one clock cycle)
         #5 reset_reg_n = 0;
-        #5 reset_reg_n = 1;
+        #3 reset_reg_n = 1;
 
-        // plug in a single add instruction!
-        instruction = 32'b0000000_00010_00001_000_00011_0110011;
-        $display("[Time: %0t] Inputted instruction add $3, $1, $2", $time);
-
-        // Instruction should be latched on time: 15 so we reset instruction back to NOP afterwards
-        #10 instruction = 0;
+        // now we can enable the pc
+        pc_enable = 1;
+        
+        // add should be seen in the following 3 clock cycles
 
         #50 $finish;
     end
