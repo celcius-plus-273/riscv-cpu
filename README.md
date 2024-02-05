@@ -26,7 +26,7 @@ RTL Modules:
 - [x] ALU Unit
 - [x] Register and ALU integration on simple datapath
 - [x] 3-stages: DECODE, EXECUTE, and WRITEBACK
+- [x] Instruction register and PC (program counter) -> Fetch Stage
 - [ ] Extend pipeline for I-Type instructions
-- [ ] Instruction register and PC (program counter)
 - [ ] Instruction memory -> L1 I-cache
 - [ ] Data Memory -> L1 D-cache

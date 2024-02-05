@@ -1,11 +1,18 @@
-files = test/datapath_test.v src/register.v src/alu.v src/decode.v src/execute.v src/writeback.v src/fetch.v src/i_register.v
+# define the design source files
+decode = src/decode/decode.v src/decode/register.v
+execute = src/execute/execute.v src/execute/alu.v
+fetch = src/fetch/fetch.v src/fetch/i_register.v
+writeback = src/writeback/writeback.v
+
+# datapath test files
+datapath = test/datapath_test.v $(decode) $(execute) $(fetch) $(writeback)
 output = target/test
 
 all: run
 
-cpu: $(files)
+cpu: $(datapath)
 	echo "running iverilog..."
-	iverilog -o $(output) $(files) 
+	iverilog -o $(output) $(datapath) 
 
 run: cpu
 	vvp $(output)
