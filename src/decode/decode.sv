@@ -42,6 +42,14 @@ module decode
      *  3. Passthrough control signals like write_enable
     */
 
+    // opcode will be used in this module to properly assign values and control
+    // signals for the requio
+    wire [6:0] opcode;
+    assign opcode = instruction[6:0];
+
+    // latch this value and sends it forward to future stages of the pipe which might need this value?
+    //reg [6:0] opcode_reg; // NOT SURE IF THIS IS NEEDED
+
     // OP will be used in this module to support other types of instructions
     // We'll have both a wire and a reg for this
     wire [6:0] opcode = instruction[6:0];
@@ -117,7 +125,7 @@ module decode
 
     end
 
-    // Instantiate the register file
+    // instantiate the register file
     register register_file (
         .clock(clock),
         .reset_n(reset_reg_n),
