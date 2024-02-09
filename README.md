@@ -37,3 +37,4 @@ RTL Modules:
     - What happens if instruction 32'b0 is passed into decode? -> invalid?
     - Do we need to make a distinction between NOP and invalid?
     - If so, does it make sense to incorporate a valid bit as a passthrough value?
+- should we care a lot about performance of individual modules or simply make them functional?  
