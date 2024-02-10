@@ -20,12 +20,12 @@ run: cpu
 clean:
 	rm -rf ./target/*
 
-alu_files = src/alu.sv test/alu_test.sv
+alu_files = src/alu.v test/alu_test.v
 alu_output = target/iverilog/alu_test
 alu:
 	iverilog -o $(alu_output) $(alu_files)
 
-register_files = test/register_test.sv src/register.sv
+register_files = test/register_test.v src/register.v
 register_output = target/iverilog/reg_test
 reg:
 	iverilog -o $(register_output) $(register_files)

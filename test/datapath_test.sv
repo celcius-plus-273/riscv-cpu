@@ -59,10 +59,11 @@ module tb;
     // decode-execute wires
     wire [31:0] source1_data;
     wire [31:0] source2_data;
+    wire [31:0] immediate_de;
     wire [4:0] reg_dest_de;
     wire [6:0] funct7_de;
     wire [2:0] funct3_de;
-    wire write_enable_de;
+    wire is_write_de;
 
     // instantaite the three stages!
     decode decode_stage (
@@ -78,10 +79,11 @@ module tb;
         .data_source1(source1_data),
         .data_source2(source2_data),
 
+        .immediate_decoded(immediate_de),
         .reg_dest_decoded(reg_dest_de),
         .funct7_decoded(funct7_de),
         .funct3_decoded(funct3_de),
-        .write_enable_decoded(write_enable_de)
+        .is_write_decoded(is_write_de)
     );
 
     // exe-wb wires
@@ -102,7 +104,7 @@ module tb;
         .reg_dest_in(reg_dest_de),
         .reg_dest_out(reg_dest_exwb),
 
-        .write_enable_in(write_enable_de),
+        .write_enable_in(is_write_de),
         .write_enable_out(write_enable_exwb)
     );
 
@@ -130,7 +132,7 @@ module tb;
         
         // add should be seen in the following 3 clock cycles
 
-        #50 $finish;
+        #100 $finish;
     end
 
 endmodule
