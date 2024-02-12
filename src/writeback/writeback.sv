@@ -42,6 +42,9 @@ module writeback
         write_data <= write_data_reg;
         write_addr <= reg_dest_reg;
         write_enable_out <= write_enable_reg;
+
+        // DEBUG PRINT
+        //$display("WRITEBACK STAGE \n[Time: %0t] Write enable: %0b", $time, write_enable_reg);
     end
 
 endmodule

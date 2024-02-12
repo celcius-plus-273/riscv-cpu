@@ -1,4 +1,10 @@
-module tb;
+module datapath
+#(
+    parameter WORD_SIZE = 32
+)
+(
+    input wire clock
+);
     
     // CLOCK STUFF
     localparam CLOCK_PERIOD = 10;
@@ -30,7 +36,7 @@ module tb;
     reg pc_enable = 0;
 
     always begin
-        if (pc_enable) $display("[Time: %0t] Incrementing PC: %0d -> %0d", $time, pc, pc + 1);
+        $display("[Time: %0t] Incrementing PC: %0d -> %0d", $time, pc, pc + 1);
         #(CLOCK_PERIOD) pc <= pc_enable ? pc + 1 : pc;
     end
     
@@ -121,7 +127,7 @@ module tb;
     );
 
     initial begin
-        $display("Cycle count: %0d", cycles); // initial cycle count output
+        $display("Cycle count %0d", cycles); // initial cycle count output
 
         // issue initial reset to register file (consumes one clock cycle)
         #5 reset_reg_n = 0;

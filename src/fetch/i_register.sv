@@ -17,8 +17,10 @@ module instruction_register
 
     // output instruction
     always @ (negedge clock) begin
-        instruction = instruction_reg[pc]; // change to blocking to use debug display message
-        $display("[Time: %0t] PC: %0d | Instruction: %0b", $time, pc, instruction);
+        instruction <= instruction_reg[pc]; // change to blocking to use debug display message
+        
+        // DEBUG PRINT
+        //$display("[Time: %0t] PC: %0d | Instruction: %0b", $time, pc, instruction);
     end
 
     // THIS IS THE CURRENT WAY TO INCLUDE INSTRUCTIONS INTO THE REGISTER :)
@@ -39,8 +41,11 @@ module instruction_register
         // lw   x1, 1(0)
         //instruction_reg[0] = 32'b000000000001_00000_010_00001_0000011;
 
-        // add  x3, x1, x2
-        instruction_reg[1] = 32'b0000000_00010_00001_000_00011_0110011;
+        // add  x1, x1, x2
+        instruction_reg[1] = 32'b0000000_00010_00001_000_00001_0110011;
+
+        // add x1, x1, x2
+        instruction_reg[5] = 32'b0000000_00010_00001_000_00001_0110011;
 
     end
 

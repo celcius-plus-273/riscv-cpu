@@ -51,6 +51,9 @@ module execute
         // latch passthrough data
         reg_dest_reg <= reg_dest_in;
         write_enable_reg <= write_enable_in;
+        
+        // DEBUG PRINT
+        //$display("EXECUTE STAGE \n[Time: %0t] Write Enable: %0b", $time, write_enable_in);
     end
 
     // instantiate alu module

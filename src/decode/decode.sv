@@ -43,7 +43,7 @@ module decode
      *  3. Passthrough control signals like write_enable
     */
 
-    // typedef enum bit [2:0] instruction_type {
+    // typedef enum bit [3:0] instruction_type {
     //     R_TYPE,
     //     I_TYPE,
     //     I_MEM_TYPE,
@@ -51,17 +51,18 @@ module decode
     //     B_TYPE,
     //     U_TYPE,
     //     J_TYPE,
-    //     R4_TYPE
+    //     R4_TYPE,
+    //     INVALID
     // } i_type;
-    localparam R_TYPE = 0;
-    localparam I_TYPE = 1;
-    localparam I_MEM_TYPE = 2;
-    localparam S_TYPE = 3;
-    localparam B_TYPE = 4;
-    localparam U_TYPE = 5;
-    localparam J_TYPE = 6;
-    localparam R4_TYPE = 7;
-    localparam INVALID = 8;
+    localparam INVALID = 0;
+    localparam R_TYPE = 1;
+    localparam I_TYPE = 2;
+    localparam I_MEM_TYPE = 3;
+    localparam S_TYPE = 4;
+    localparam B_TYPE = 5;
+    localparam U_TYPE = 6;
+    localparam J_TYPE = 7;
+    localparam R4_TYPE = 8;
 
     // OP will be used in this module to support other types of instructions
     // We'll have both a wire and a reg for this
@@ -94,7 +95,7 @@ module decode
 
     // store the instruction type as an enum
     //i_type [2:0] instruction_type;
-    reg [2:0] instruction_type = 0;
+    reg [3:0] instruction_type = INVALID; // initialize to INVALID
 
     // decode the infomration necessary for a register read and latch this value
     // during the posedge
@@ -110,7 +111,11 @@ module decode
 
         // decode the instruction type during the posedge
         if (valid) begin
+
+            //DEBUG PRINT
             $display("[Time: %0t] Got valid instruction!", $time);
+
+            // Assign instruction type based on localparam/enum
             case (opcode_A)
                 // I-type instruction
                 3'b000: instruction_type <= I_MEM_TYPE;
@@ -126,16 +131,35 @@ module decode
                 3'b110: 
                 begin
                     case (opcode_B)
-                        2'b00: instruction_type <= B_TYPE;
+                        2'b00: instruction_type <= B_TYPE; // conditional branches
                         2'b01: instruction_type <= I_TYPE; // jalr uses I-type format
-                        2'b11: instruction_type <= J_TYPE;
+                        2'b11: instruction_type <= J_TYPE; // jump instructions
                     endcase
                 end
-                default: instruction_type <= I_TYPE;
+
+                // In this case default refers to a NOP instruction
+                default: instruction_type <= I_TYPE; // NOP instruction is defined as addi
             endcase
         end
-        else
+        else begin
+            // if isntruction didn't have a valid opcode then tag it as INVALID
             instruction_type <= INVALID;
+
+            /**
+             *  Invalid can be potentially used to detect errors in the pipeline
+             *
+             *  Note that it must never be the case that an invalid isntruction is detected
+             *  unless it's intenttionally a bad instruction (NOP is not INVALID)
+             *
+             *  Could be trigger signal to flush the pipeline as it would mean that an instruction
+             *  error is detected
+             *
+             * Question: Should NOP and INVALID be the same?
+            */
+            
+            //DEBUG PRINT
+            $display("[Time: %0t] Got invalid instruction", $time);
+        end
     end
 
     // decode the remaining parts of the instruction
@@ -153,6 +177,8 @@ module decode
     // some updates need to be done on the negedge to as they depend on some of the decoded
     // values from the posedge block
     always @ (negedge clock) begin
+        //DEBUG PRINT
+        //$display("DECODE STAGE \n[Time: %0t] Instuction type: %0d", $time, instruction_type);
         case (instruction_type)
             R_TYPE: 
             begin
@@ -214,7 +240,7 @@ module decode
                 reg_dest <= instruction[11:7];
             end          
 
-            default: 
+            INVALID: 
             begin
                 // update control signals
                 is_write <= 0;
@@ -233,11 +259,7 @@ module decode
                 // if it does write, where does it write to?
                 reg_dest <= 0;
             end
-
         endcase
-
-        //debug
-        //$display("[Time: %0t] Instruction type: %0d", $time, instruction_type);
     end
 
     // instantiate the register file
