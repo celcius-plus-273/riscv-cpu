@@ -1,5 +1,5 @@
 module tb;
-    
+
     // CLOCK STUFF
     localparam CLOCK_PERIOD = 10;
     reg clock = 0;
@@ -63,7 +63,8 @@ module tb;
     wire [4:0] reg_dest_de;
     wire [6:0] funct7_de;
     wire [2:0] funct3_de;
-    wire is_write_de;
+
+    wire [3:0] instruction_decoded;
 
     // instantaite the three stages!
     decode decode_stage (
@@ -79,11 +80,23 @@ module tb;
         .data_source1(source1_data),
         .data_source2(source2_data),
 
+        .instruction_decoded(instruction_decoded),
+
         .immediate_decoded(immediate_de),
         .reg_dest_decoded(reg_dest_de),
         .funct7_decoded(funct7_de),
-        .funct3_decoded(funct3_de),
-        .is_write_decoded(is_write_de)
+        .funct3_decoded(funct3_de)
+    );
+
+    wire is_write_de;
+    wire is_immediate_de;
+
+    control control_stage (
+        .clock(clock),
+        .instruction_type(instruction_decoded),
+        .is_write(is_write_de),
+        .is_immediate(is_immediate_de),
+        .stall()
     );
 
     // exe-wb wires
@@ -96,8 +109,11 @@ module tb;
 
         .data_source1(source1_data),
         .data_source2(source2_data),
+        .immediate_source(immediate_de),
         .funct7(funct7_de),
         .funct3(funct3_de),
+
+        .is_immediate(is_immediate_de),
 
         .data_out(data_result_exwb),
 

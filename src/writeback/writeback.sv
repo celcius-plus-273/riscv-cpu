@@ -31,20 +31,20 @@ module writeback
 
     // latch all of the incmoing data
     always @ (posedge clock) begin
-        write_data_reg <= data_result;
-        reg_dest_reg <= reg_dest_in;
-        write_enable_reg <= write_enable_in;
+        write_data <= data_result;
+        write_addr <= reg_dest_in;
+        write_enable_out <= write_enable_in;
     end
 
-    // output regs need to be updated on the negedge
-    // value will be stable on the posedge (during the write stage of the reg file) 
-    always @ (negedge clock) begin
-        write_data <= write_data_reg;
-        write_addr <= reg_dest_reg;
-        write_enable_out <= write_enable_reg;
+    // // output regs need to be updated on the negedge
+    // // value will be stable on the posedge (during the write stage of the reg file) 
+    // always @ (negedge clock) begin
+    //     write_data <= write_data_reg;
+    //     write_addr <= reg_dest_reg;
+    //     write_enable_out <= write_enable_reg;
 
-        // DEBUG PRINT
-        //$display("WRITEBACK STAGE \n[Time: %0t] Write enable: %0b", $time, write_enable_reg);
-    end
+    //     // DEBUG PRINT
+    //     //$display("WRITEBACK STAGE \n[Time: %0t] Write enable: %0b", $time, write_enable_reg);
+    // end
 
 endmodule

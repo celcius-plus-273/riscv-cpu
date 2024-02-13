@@ -27,11 +27,11 @@ module register
     * Our register file supports writes on the rising edge of the clock
     * Reset is asynchronous
     */
-    always @ (posedge clock or negedge reset_n) begin
+    always @ (negedge clock or negedge reset_n) begin
         if (!reset_n) begin
             $display("[Time: %0t] resetting values in register file...", $time);
             for (i = 0; i < 32; i = i + 1) 
-                register_file[i] <= 32'b1; // REMINDER TO CHANGE BACK TO 0. SET TO 1 FOR TESTING
+                register_file[i] <= 32'b0; // REMINDER TO CHANGE BACK TO 0. SET TO 1 FOR TESTING
         end
         else begin                
             // do we need to specify what happens if write is not enabled? -> seems like we don't have to!
@@ -48,7 +48,7 @@ module register
     * Always reads on the negedge of the clock
     * Guarantees that read is done after write (if clocked properly) 
     */
-    always @ (negedge clock) begin
+    always @ (posedge clock) begin
         // does it make a different if I use blocking statements here?
         // bc this is sequential logic you are supposed to drive it with non-blockng statements...
         // why would this matter?

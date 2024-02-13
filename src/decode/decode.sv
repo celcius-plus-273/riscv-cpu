@@ -24,13 +24,16 @@ module decode
     output wire [WORD_SIZE-1:0] data_source1,
     output wire [WORD_SIZE-1:0] data_source2,
 
+    // isntruction type output to control module
+    output wire [3:0] instruction_decoded,
+    output wire [4:0] source1_decoded,
+    output wire [4:0] source2_decoded,
+
     // passthrough data
     output wire [31:0] immediate_decoded,
     output wire [4:0] reg_dest_decoded,
     output wire [6:0] funct7_decoded,
-    output wire [2:0] funct3_decoded,
-    output wire is_write_decoded
-
+    output wire [2:0] funct3_decoded
 );
     ///////////////////////////////////
     ////////// DECODE STAGE ///////////
@@ -39,8 +42,9 @@ module decode
     /** 
      *  The main functions handled on the decode stage are:
      *  1. Decode the given instruction input
-     *  2. Read the required values from the register file
-     *  3. Passthrough control signals like write_enable
+     *  2. Pass the opcode to control
+     *  3. Read the required values from the register file
+     *  4. Passthrough control signals like write_enable
     */
 
     // typedef enum bit [3:0] instruction_type {
@@ -96,18 +100,19 @@ module decode
     // store the instruction type as an enum
     //i_type [2:0] instruction_type;
     reg [3:0] instruction_type = INVALID; // initialize to INVALID
+    assign instruction_decoded = instruction_type;
 
     // decode the infomration necessary for a register read and latch this value
     // during the posedge
-    reg [4:0] reg_source1 = 0; 
-    reg [4:0] reg_source2 = 0;
+    wire [4:0] reg_source1 = instruction[19:15]; 
+    wire [4:0] reg_source2 = instruction[24:20];
     reg [4:0] reg_dest = 0; // reg_dest is a passthorugh for the writeback stage
 
     // update all of the information relevant to read register on the posedge of the clock
     always @ (posedge clock) begin
         // latch the read_source registers
-        reg_source1 <= instruction[19:15];
-        reg_source2 <= instruction[24:20];
+        //reg_source1 <= instruction[19:15];
+        //reg_source2 <= instruction[24:20];
 
         // decode the instruction type during the posedge
         if (valid) begin
@@ -167,11 +172,6 @@ module decode
     reg [2:0] funct3 = 0;
 
     // will accomodate for all possible immediate values
-    reg is_write = 0;
-    reg is_branch = 0;
-    reg is_jump = 0;
-    reg is_mem_read = 0;
-    reg is_mem_write = 0;
     reg [31:0] immediate = 0; 
 
     // some updates need to be done on the negedge to as they depend on some of the decoded
@@ -182,13 +182,6 @@ module decode
         case (instruction_type)
             R_TYPE: 
             begin
-                // update control signals
-                is_write <= 1;
-                is_branch <= 0;
-                is_jump <= 0;
-                is_mem_read <= 0;
-                is_mem_write <= 0;
-
                 // update appropriate immedaite value
                 immediate <= 0;
 
@@ -202,13 +195,6 @@ module decode
 
             I_TYPE: 
             begin
-                // update control signals
-                is_write <= 1;
-                is_branch <= 0;
-                is_jump <= 0;
-                is_mem_read <= 0;
-                is_mem_write <= 0;
-
                 // update appropriate immedaite value
                 immediate <= { {20{instruction[31]}}, instruction[31:20]};
 
@@ -222,13 +208,6 @@ module decode
 
             I_MEM_TYPE: 
             begin
-                // update control signals
-                is_write <= 1;
-                is_branch <= 0;
-                is_jump <= 0;
-                is_mem_read <= 1;
-                is_mem_write <= 0;
-
                 // update appropriate immedaite value
                 immediate <= { {20{instruction[31]}}, instruction[31:20]};
 
@@ -242,13 +221,6 @@ module decode
 
             INVALID: 
             begin
-                // update control signals
-                is_write <= 0;
-                is_branch <= 0;
-                is_jump <= 0;
-                is_mem_read <= 0;
-                is_mem_write <= 0;
-
                 // update appropriate immedaite value
                 immediate <= 0;
 
@@ -280,6 +252,5 @@ module decode
     assign funct3_decoded = funct3;
     assign funct7_decoded = funct7;
     assign reg_dest_decoded = reg_dest;
-    assign is_write_decoded = is_write;
 
 endmodule

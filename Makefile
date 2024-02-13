@@ -1,11 +1,12 @@
 # define the design source files
+control = src/control/control.sv
 decode = src/decode/decode.sv src/decode/register.sv
 execute = src/execute/execute.sv src/execute/alu.sv
 fetch = src/fetch/fetch.sv src/fetch/i_register.sv
 writeback = src/writeback/writeback.sv
 
 # datapath test files
-datapath = test/datapath_test.sv $(decode) $(execute) $(fetch) $(writeback)
+datapath = test/datapath_test.sv $(decode) $(execute) $(fetch) $(writeback) $(control)
 output = target/test
 
 all: run
