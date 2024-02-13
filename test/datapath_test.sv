@@ -1,5 +1,5 @@
 module tb;
-    
+
     // CLOCK STUFF
     localparam CLOCK_PERIOD = 10;
     reg clock = 0;
@@ -30,7 +30,7 @@ module tb;
     reg pc_enable = 0;
 
     always begin
-        $display("[Time: %0t] Incrementing PC: %0d -> %0d", $time, pc, pc + 1);
+        if (pc_enable) $display("[Time: %0t] Incrementing PC: %0d -> %0d", $time, pc, pc + 1);
         #(CLOCK_PERIOD) pc <= pc_enable ? pc + 1 : pc;
     end
     
@@ -59,10 +59,12 @@ module tb;
     // decode-execute wires
     wire [31:0] source1_data;
     wire [31:0] source2_data;
+    wire [31:0] immediate_de;
     wire [4:0] reg_dest_de;
     wire [6:0] funct7_de;
     wire [2:0] funct3_de;
-    wire write_enable_de;
+
+    wire [3:0] instruction_decoded;
 
     // instantaite the three stages!
     decode decode_stage (
@@ -78,10 +80,23 @@ module tb;
         .data_source1(source1_data),
         .data_source2(source2_data),
 
+        .instruction_decoded(instruction_decoded),
+
+        .immediate_decoded(immediate_de),
         .reg_dest_decoded(reg_dest_de),
         .funct7_decoded(funct7_de),
-        .funct3_decoded(funct3_de),
-        .write_enable_decoded(write_enable_de)
+        .funct3_decoded(funct3_de)
+    );
+
+    wire is_write_de;
+    wire is_immediate_de;
+
+    control control_stage (
+        .clock(clock),
+        .instruction_type(instruction_decoded),
+        .is_write(is_write_de),
+        .is_immediate(is_immediate_de),
+        .stall()
     );
 
     // exe-wb wires
@@ -94,15 +109,18 @@ module tb;
 
         .data_source1(source1_data),
         .data_source2(source2_data),
+        .immediate_source(immediate_de),
         .funct7(funct7_de),
         .funct3(funct3_de),
+
+        .is_immediate(is_immediate_de),
 
         .data_out(data_result_exwb),
 
         .reg_dest_in(reg_dest_de),
         .reg_dest_out(reg_dest_exwb),
 
-        .write_enable_in(write_enable_de),
+        .write_enable_in(is_write_de),
         .write_enable_out(write_enable_exwb)
     );
 
@@ -119,7 +137,7 @@ module tb;
     );
 
     initial begin
-        $display("Cycle count %0d", cycles); // initial cycle count output
+        $display("Cycle count: %0d", cycles); // initial cycle count output
 
         // issue initial reset to register file (consumes one clock cycle)
         #5 reset_reg_n = 0;
@@ -130,7 +148,7 @@ module tb;
         
         // add should be seen in the following 3 clock cycles
 
-        #50 $finish;
+        #100 $finish;
     end
 
 endmodule

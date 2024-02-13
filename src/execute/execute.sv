@@ -10,6 +10,7 @@ module execute
     // the main inputs are the data sources
     input wire [WORD_SIZE-1:0] data_source1,
     input wire [WORD_SIZE-1:0] data_source2,
+    input wire [WORD_SIZE-1:0] immediate_source,
     input wire [6:0] funct7,
     input wire [2:0] funct3,
 
@@ -23,6 +24,7 @@ module execute
     output wire write_enable_out,
 
     // control signal
+    input wire is_immediate,
     input wire clock
 );
     /*
@@ -31,8 +33,8 @@ module execute
     */
 
     // pipeline latches for incoming data
-    reg [WORD_SIZE-1:0] data_source1_reg = 0;
-    reg [WORD_SIZE-1:0] data_source2_reg = 0;
+    reg [WORD_SIZE-1:0] data_sourceA_reg = 0;
+    reg [WORD_SIZE-1:0] data_sourceB_reg = 0;
     reg [6:0] funct7_reg = 0;
     reg [2:0] funct3_reg = 0;
     reg [4:0] reg_dest_reg = 0;
@@ -41,16 +43,19 @@ module execute
     // latch the input data on posedge
     always @ (posedge clock) begin
         // latch data
-        data_source1_reg <= data_source1;
-        data_source2_reg <= data_source2;
-
+        data_sourceA_reg <= data_source1;
+        data_sourceB_reg <= is_immediate ? immediate_source : data_source2;
+        
         // latch function input
-        funct7_reg <= funct7;
+        funct7_reg <= is_immediate ? 0 : funct7;
         funct3_reg <= funct3;
 
         // latch passthrough data
         reg_dest_reg <= reg_dest_in;
         write_enable_reg <= write_enable_in;
+        
+        // DEBUG PRINT
+        //$display("EXECUTE STAGE \n[Time: %0t] Write Enable: %0b", $time, write_enable_in);
     end
 
     // instantiate alu module
@@ -58,8 +63,8 @@ module execute
         .clock(clock),
         .funct7(funct7_reg),
         .funct3(funct3_reg),
-        .source1(data_source1_reg),
-        .source2(data_source2_reg),
+        .source1(data_sourceA_reg),
+        .source2(data_sourceB_reg),
         .result(data_out)
         // data_out gets updated on every negedge of the clock 
     );

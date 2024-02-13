@@ -17,7 +17,9 @@ module instruction_register
 
     // output instruction
     always @ (negedge clock) begin
-        instruction = instruction_reg[pc];
+        instruction = instruction_reg[pc]; // change to blocking to use debug display message
+        
+        // DEBUG PRINT
         $display("[Time: %0t] PC: %0d | Instruction: %0b", $time, pc, instruction);
     end
 
@@ -34,11 +36,17 @@ module instruction_register
         *   One possible improvement would be to automate this process
         *   - using some tool to compile RV32I into instrucitons
         *   - can I dump data into this array using some sort of script?
+        *       - SystemVerilog file system ($fopen, $fread) might be useful here
         */
 
-        // add x3, x1, x2
-        instruction_reg[1] = 32'b0000000_00010_00001_000_00011_0110011;
+        // add  x1, x1, x2
+        instruction_reg[1] = 32'b0000000_00010_00001_000_00001_0110011;
+
+        // increment x2 using immedaite value of 1
+        instruction_reg[2] = 32'b000000000001_00010_000_00010_0010011;
+
+        // add x1, x1, x2
+        instruction_reg[5] = 32'b0000000_00010_00001_000_00001_0110011;
 
     end
-
 endmodule

@@ -1,11 +1,12 @@
 # define the design source files
+control = src/control/control.sv
 decode = src/decode/decode.sv src/decode/register.sv
 execute = src/execute/execute.sv src/execute/alu.sv
 fetch = src/fetch/fetch.sv src/fetch/i_register.sv
 writeback = src/writeback/writeback.sv
 
 # datapath test files
-datapath = test/datapath_test.sv $(decode) $(execute) $(fetch) $(writeback)
+datapath = test/datapath_test.sv $(decode) $(execute) $(fetch) $(writeback) $(control)
 output = target/test
 
 all: run
@@ -20,12 +21,12 @@ run: cpu
 clean:
 	rm -rf ./target/*
 
-alu_files = src/alu.sv test/alu_test.sv
+alu_files = src/alu.v test/alu_test.v
 alu_output = target/iverilog/alu_test
 alu:
 	iverilog -o $(alu_output) $(alu_files)
 
-register_files = test/register_test.sv src/register.sv
+register_files = test/register_test.v src/register.v
 register_output = target/iverilog/reg_test
 reg:
 	iverilog -o $(register_output) $(register_files)
