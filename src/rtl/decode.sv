@@ -7,11 +7,12 @@ import rv_cpu_pkg::ctl_id_s;    // control to decode
 import rv_cpu_pkg::id_hzd_s;    // decode to hazard
 
 // Pipeline Registers
+import rv_cpu_pkg::if_id_s;    // IF to ID interface
 import rv_cpu_pkg::id_ex_s;
 import rv_cpu_pkg::wb_id_s;
 
 // Enums
-import rv_cpu_pkg::inst_type_e;
+import rv_cpu_pkg::imm_sel_e;
 
 module decode
 #(
@@ -22,17 +23,9 @@ module decode
     localparam int RF_ADDR_WIDTH = $clog2(RF_DEPTH)
 )
 (
-    /*
-        THIS PORT LIST WILL BE EXPANDED AS I
-        INCLUDE SUPPORT FOR MORE RV32 instructions
-    */
-
-    // control signals for decode
+    // clk and rst
     input logic         clk_i,
     input logic         rstn_i,
-
-    // Fetched instruction :D
-    input logic [31:0]  inst_i,
 
     // Control Stage Interfaces (wire)
     input ctl_id_s      ctl_id_i,   // Control to ID Interface
@@ -42,6 +35,7 @@ module decode
     output id_hzd_s    id_hzd_o,   // ID to Hazard Detection Interface
 
     // Decode Stage Interfaces (pipeline registers)
+    input if_id_s       if_id_i,    // IF to ID interface
     input wb_id_s       wb_id_i,    // WB to ID interface
     output id_ex_s      id_ex_o     // ID to EX Interface
 );
@@ -59,6 +53,9 @@ module decode
     // ======================== //
     //        Variables
     // ======================== //
+    // inst_i becuase I am too lazy to change all of the references
+    logic [31:0]    inst_i;     // instruction input from IF stage (assigned from if_id_i)
+
     // reg file read (wire)
     logic [4:0]     rs1_addr;
     logic [4:0]     rs2_addr;
@@ -66,7 +63,16 @@ module decode
     // decoded immediate and funct fields (wire)
     logic [6:0]     funct7;
     logic [2:0]     funct3;
-    logic [31:0]    immediate;
+
+    // Decode all immediate combinations
+    logic [11:0]    imm;    // signed immediate   [12 bits]
+    logic [4:0]     uimm;   // unsigned immediate [5 bits]
+    logic [19:0]    upimm;  // upper immediate    [20 bits]
+    logic [11:0]    bta_imm; // branch target imm [12 bits]
+    logic [19:0]    jta_imm; // jump target imm   [20 bits]
+
+    // immediate for ex stage
+    logic [31:0]    imm_next;
 
     // decoded reg dest (wire)
     logic [4:0]     rd_addr; // reg_dest addr
@@ -74,9 +80,6 @@ module decode
     always_comb begin : static_inst_decode
         // opcode decode
         opcode      = inst_i[6:0];
-        opcode_A    = opcode[6:4];
-        opcode_B    = opcode[3:2];
-        inst_vld    = &opcode[1:0]; // vld = opcode[1] & opcode[0]
 
         // register addr decode
         rs1_addr    = inst_i[19:15];
@@ -86,25 +89,49 @@ module decode
         // funct 3 & funct 7
         funct3      = inst_i[14:12];    // do we want to gate this?
         funct7      = inst_i[31:25];    // do we want to gate this?
+
+        // immediate decode
+        imm         = inst_i[31:20];
+        uimm        = inst_i[24:20];
+        upimm       = inst_i[31:12];
+        st_imm      = {inst_i[31:25], inst_i[11:7]};    // store immediate value
+
+        // BTA Immediate Value
+        // inst[31:25] = imm[12], imm[10:5]
+        // inst[11:7] = imm[4:1], imm[11]
+        bta_imm     = {inst_i[31], inst_i[7], inst_i[30:25], inst_i[11:8]};
+
+        // JTA Immediate Value
+        // inst[31:12] = imm[20], imm[10:1], imm[11], imm[19:12]
+        jta_imm     = {inst_i[31], inst_i[19:12], inst_i[20], inst_i[30:21]};
     end
 
     // decode immediate value based on instruction type
     always_comb begin : immediate_decode
-        // Supported instructions for now:
-        // - R-type (add, sub, and, or, xor)
-        // - I-type (addi, andi, ori, xori, load)
-
-        // TODO: add support for other instruction types (S, B, U, J)
-        case (inst_next)
-            R_TYPE: begin
-                immediate   = '0;   // immediate is not used for R-type instructions
+        case (ctl_id_i.imm_sel)
+            IMM_none: begin
+                imm_next = '0;
             end
-            I_TYPE: begin
-                // imm <= sign_ext(inst_i[31:20]);
-                immediate <= { {20{instruction[31]}}, instruction[31:20]};
+            IMM_imm: begin
+                imm_next = { {20{imm[11]}}, imm};
+            end
+            IMM_uimm: begin
+                imm_next = { {27{1'b0}}, uimm};
+            end
+            IMM_upimm: begin
+                imm_next = { upimm, 12'b0};
+            end
+            IMM_simm: begin
+                imm_next = { {20{st_imm[11]}}, st_imm};
+            end
+            IMM_bimm: begin
+                imm_next = { {19{bta_imm[11]}}, bta_imm, 1'b0};
+            end
+            IMM_jimm: begin
+                imm_next = { {11{jta_imm[19]}}, jta_imm, 1'b0};
             end
             default: begin
-                immediate   = 'x;
+                imm_next   = 'x;
             end
         endcase
     end
@@ -137,16 +164,31 @@ module decode
     // Decode to EX pipeline register
     always_ff @( posedge clk_i or negedge rstn_i ) begin : output_ff
         if (!rstn_i) begin
-            id_ctl_o <= '0;
             id_ex_o <= '0;
         end
         else begin
+            // add flush?
+
             // decode to execute
-            id_ex_o.imm     <= immediate;
-            id_ex_o.rd_wen  <= ctl_id_i.rd_wen;
-            id_ex_o.rd_addr <= rd_addr;
+            id_ex_o.pc         <= if_id_i.pc;
+            id_ex_o.pc_p4      <= if_id_i.pc_p4;
+
+            id_ex_o.imm         <= imm_next;
+            id_ex_o.alu_op      <= ctl_id_i.alu_op;
+            id_ex_o.alu_src     <= ctl_id_i.alu_src;
+
+            id_ex_o.mem_rd_en   <= ctl_id_i.mem_rd_en;
+            id_ex_o.mem_wr_en   <= ctl_id_i.mem_wr_en;
+            id_ex_o.is_branch   <= ctl_id_i.is_branch;
+            id_ex_o.is_jump     <= ctl_id_i.is_jump;
+            id_ex_o.wb_src      <= ctl_id_i.wb_src;
+            id_ex_o.rd_wen      <= ctl_id_i.rd_wen;
+            id_ex_o.rd_addr     <= rd_addr;
         end
     end
+
+    // Assigned Inputs
+    assign inst_i = if_id_i.inst;
 
     // =========================== //
     //      Assigned Outputs

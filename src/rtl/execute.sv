@@ -1,76 +1,85 @@
-module execute 
-#(
-    parameter WORD_SIZE = 32
-)
+import rv_cpu_pkg::id_ex_s;
+import rv_cpu_pkg::ex_mem_s;
+
+module execute
 (
-    /*
-        SINGLE EXECUTE UNIT
-        -- MORE WILL BE ADDED ONCE OUT-OF-ORDER IS SUPPORTED
-    */
-    // the main inputs are the data sources
-    input wire [WORD_SIZE-1:0] data_source1,
-    input wire [WORD_SIZE-1:0] data_source2,
-    input wire [WORD_SIZE-1:0] immediate_source,
-    input wire [6:0] funct7,
-    input wire [2:0] funct3,
+    // clk, rst
+    input logic     clk_i,
+    input logic     rstn_i,
 
-    // the output is the ALU output
-    output wire [WORD_SIZE-1:0] data_out,
+    // Execute Stage Interfaces (Wires)
+    output ex_if_s   ex_if_o,       // EX to IF interface for branch target update
 
-    // passthrough data/signals
-    input wire [4:0] reg_dest_in,
-    output wire [4:0] reg_dest_out,
-    input wire write_enable_in,
-    output wire write_enable_out,
-
-    // control signal
-    input wire is_immediate,
-    input wire clock
+    // Execute Stage Interfaces (Reg Pipelines)
+    input id_ex_s   id_ex_i,        // ID to EX interface
+    output ex_mem_s ex_mem_o        // EX to MEM interface
 );
-    /*
-        For now this module will simply instantiate the ALU unit and connect it to the other 
-        stages of the pipeline
+    // ============================== //
+    //        EXECUTE STAGE
+    // ============================== //
+    /**
+     *  The main functions handled on the execute stage are:
+     *  1. Perform the ALU operation as determined by the control signals
+     *  2. Pass the ALU result to the memory stage
+     *  3. Passthrough control signals like write_enable and rd_addr
     */
 
-    // pipeline latches for incoming data
-    reg [WORD_SIZE-1:0] data_sourceA_reg = 0;
-    reg [WORD_SIZE-1:0] data_sourceB_reg = 0;
-    reg [6:0] funct7_reg = 0;
-    reg [2:0] funct3_reg = 0;
-    reg [4:0] reg_dest_reg = 0;
-    reg write_enable_reg = 0;
+    // ============================== //
+    //           Variables
+    // ============================== //
+    logic [31:0]    alu_srcA;
+    logic [31:0]    alu_srcB;
+    logic [31:0]    alu_result;
 
-    // latch the input data on posedge
-    always @ (posedge clock) begin
-        // latch data
-        data_sourceA_reg <= data_source1;
-        data_sourceB_reg <= is_immediate ? immediate_source : data_source2;
-        
-        // latch function input
-        funct7_reg <= is_immediate ? 0 : funct7;
-        funct3_reg <= funct3;
+    // Branch logic variables
+    logic           pc_src; // 0 = PC + 4, 1 = branch/jump target
+    logic [31:0]    pc_addr; // branch/jump target address
+    logic [31:0]    addr_result; // pc + immediate
 
-        // latch passthrough data
-        reg_dest_reg <= reg_dest_in;
-        write_enable_reg <= write_enable_in;
-        
-        // DEBUG PRINT
-        //$display("EXECUTE STAGE \n[Time: %0t] Write Enable: %0b", $time, write_enable_in);
+    // Branch resolution logic
+    always_comb begin : branch_logic
+        pc_src          = (id_ex_i.is_branch & (~|alu_result)) | id_ex_i.is_jump;
+
+        // target addr logic
+        addr_result     = id_ex_i.pc + id_ex_i.imm;
+        pc_addr         = (id_ex_i.is_jalr) ? alu_result : addr_result;
     end
 
-    // instantiate alu module
-    alu  alu_unit (
-        .clock(clock),
-        .funct7(funct7_reg),
-        .funct3(funct3_reg),
-        .source1(data_sourceA_reg),
-        .source2(data_sourceB_reg),
-        .result(data_out)
-        // data_out gets updated on every negedge of the clock 
+    // Combinational Assign
+    // TODO: add forwarding
+    assign alu_srcA = id_ex_i.rs1_data;
+    assign alu_srcB = id_ex_i.alu_src ? id_ex_i.imm : id_ex_i.rs2_data;
+
+    // Instantiate the ALU
+    alu alu_inst (
+        .op_i(id_ex_i.alu_op),
+        .srcA_i(alu_srcA),
+        .srcB_i(alu_srcB),
+        .result_o(alu_result)
     );
 
-    // passthrough assignments
-    assign reg_dest_out = reg_dest_reg;
-    assign write_enable_out = write_enable_reg;
+    // output reg pipeline
+    always_ff @(posedge clk_i or negedge rstn_i) begin
+        if (!rstn_i) begin
+            ex_mem_o <= '0;
+        end else begin
+            // no flush?
+
+            ex_mem_o.pc_p4          <= id_ex_i.pc_p4;
+            ex_mem_o.alu_result     <= alu_result;
+            ex_mem_o.addr_result    <= addr_result;
+
+            ex_mem_o.mem_rd_en      <= id_ex_i.mem_rd_en;
+            ex_mem_o.mem_wr_en      <= id_ex_i.mem_wr_en;
+            ex_mem_o.mem_wr_data    <= id_ex_i.rs2_data;
+
+            ex_mem_o.wb_src         <= id_ex_i.wb_src;
+            ex_mem_o.rd_wen         <= id_ex_i.rd_wen;
+            ex_mem_o.rd_addr        <= id_ex_i.rd_addr;
+
+    // Assigned Outputs
+    // EX to IF interface (wire)
+    assign ex_if_o.pc_src  = pc_src;
+    assign ex_if_o.pc_addr = pc_addr;
 
 endmodule

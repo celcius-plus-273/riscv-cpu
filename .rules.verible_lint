@@ -1,0 +1,29 @@
+# --- Formatting Configuration ---
+line-length=120
+indentation-spaces=4
+
+# --- Naming Conventions ---
+# Disable strict naming checks (Google requires specific suffix/prefix rules)
+-parameter-name-style
+-macro-name-style
+
+# --- Syntax Preferences ---
+# Don't force me to label every end (e.g., 'endmodule : my_module')
+-generate-label
+-module-label
+-always-suffix
+
+# --- Code Style ---
+# Allow explicit bit slicing even if not strictly necessary
+-explicit-parameter-storage-type
+-no-trailing-spaces
+dff-name-style
+proper-parameter-declaration
+port-name-suffix
+
+# --- Safety (Keep these enabled!) ---
+# These are good rules to keep, but listed here so you know they exist.
+# You don't actually need to list them if they are on by default.
++always-comb
++always-ff-non-blocking
++case-missing-default

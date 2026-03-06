@@ -1,28 +1,62 @@
-module if_id
+import rv_cpu_pkg::ex_if_s;
+import rv_cpu_pkg::if_id_s;
+
+module fetch
 #(
-    parameter INST_WIDTH = 32,
-    parameter PC_WIDTH = 32,
     parameter I_MEM_DEPTH = 64
 )
 (
     // clk, rstn, en
-    input logic clk_i,
-    input logic en_i,
-    input logic rstn_i,
+    input logic     clk_i,
+    input logic     en_i,
+    input logic     rstn_i,
 
-    // input PC
-    input logic [PC_WIDTH-1:0] pc_i,
+    // Execute Stage Interface (wire)
+    input ex_if_s   ex_if_i,
 
-    // output instruction
-    output logic [INST_WIDTH-1:0] inst_o
+    // Decode Stage Interface (pipeline register)
+    output if_id_s if_id_o
 );
     /**
-     *  Fetch Stage
-     *
-     *  Fetch the next instruction indicated by PC
-     *  - PC is updated every cycle
-     *  - Assume a valid PC is available at the beginning of the cycle
-     */
+    *  Fetch Stage
+    *
+    *  Fetch the next instruction indicated by PC
+    *  - PC is updated every cycle
+    *  - Assume a valid PC is available at the beginning of the cycle
+    */
+
+    // ============================== //
+    //         Variables
+    // ============================== //
+    logic [31:0] pc_r;
+    logic [31:0] pc_next;
+
+    // PC Update Logic
+    always_ff @(posedge clk_i or negedge rstn_i) begin
+        if (!rstn_i) begin
+            pc_r <= 0;  // initial pc can be configurable...?
+        end
+        else begin
+            pc_r <= en_i ? pc_next : pc_r;
+        end
+    end
+
+    // next pc logic (comb assign)
+    // current prediction: always not taken (pc + 4)
+    // TODO: add branch prediction logic (Gskew or Gshare)
+    assign pc_next = ex_if_i.pc_src ? ex_if_i.pc_addr : pc_r + 4;
+
+    // output reg pipeline
+    always_ff @(posedge clk_i or negedge rstn_i) begin
+        if (!rstn_i) begin
+            if_id_o <= '0;
+        end
+        else begin
+            // add flush?
+            if_id_o.pc    <= pc_r;
+            if_id_o.pc_p4 <= pc_r + 4;
+        end
+    end
 
     /**
     *  Instruction Register
@@ -32,14 +66,13 @@ module if_id
     *  - TODO: upgrade to an I-Cache
     */
     i_reg #(
-        .WIDTH(INST_WIDTH),
         .DEPTH(I_MEM_DEPTH) // for now we will just support 64 instructions, can be increased later
     ) i_reg_inst (
         .clk_i(clk_i),
         .rstn_i(rstn_i),
         .en_i(en_i),    // we will use this for stalling :)
-        .pc_i(pc_i),
-        .inst_o(inst_o) // registered output
+        .pc_i(pc_r),
+        .inst_o(if_id_o.inst) // registered output
     );
 
 endmodule
