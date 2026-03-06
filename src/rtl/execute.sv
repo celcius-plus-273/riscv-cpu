@@ -76,6 +76,8 @@ module execute
             ex_mem_o.wb_src         <= id_ex_i.wb_src;
             ex_mem_o.rd_wen         <= id_ex_i.rd_wen;
             ex_mem_o.rd_addr        <= id_ex_i.rd_addr;
+        end
+    end
 
     // Assigned Outputs
     // EX to IF interface (wire)

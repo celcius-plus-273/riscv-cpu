@@ -1,50 +1,38 @@
-module writeback 
-#(
-    parameter WORD_SIZE = 32
-)
+module writeback
 (
-    /*
-        The writeback stage takes the output from the execute stage and writes it back
-        to the register file located on the decode module
-    */
-    
-    // input control signals
-    input wire clock,
+    // clk, rst
+    input logic     clk_i,
+    input logic     rstn_i, // not needed hm
 
-    // input data from the execute stage
-    input wire [WORD_SIZE-1:0] data_result,
-    // input destination register
-    input wire [4:0] reg_dest_in,
-    // input write enable signal
-    input wire write_enable_in,
+    // Memory to Writeback pipeline register (reg)
+    input mem_wb_s mem_wb_i,
 
-    // output write data and write address
-    output reg [WORD_SIZE-1:0] write_data,
-    output reg [4:0] write_addr,
-    output reg write_enable_out
+    // Writeback to Reg File Interface (wire)
+    output wb_id_s wb_id_o
 );
+    // ============================== //
+    //         WRITEBACK STAGE
+    // ============================== //
+    /**
+    *  The main functions handled on the writeback stage are:
+    *  1. Perform the final writeback to the register file as determined by the control signals
+    *  2. Passthrough any necessary signals for debugging (e.g. for the testbench to check the correct execution of instructions)
+    */
 
-    //
-    reg [WORD_SIZE-1:0] write_data_reg = 0;
-    reg [4:0] reg_dest_reg = 0;
-    reg write_enable_reg = 0;
-
-    // latch all of the incmoing data
-    always @ (posedge clock) begin
-        write_data <= data_result;
-        write_addr <= reg_dest_in;
-        write_enable_out <= write_enable_in;
+    // =========================== //
+    //           Logic
+    // =========================== //
+    // use wb_src to determine the data to write back to the reg file
+    always_comb begin : wb_data_sel
+        case (mem_wb_i.wb_src)
+            2'b00: wb_id_o.rd_data = mem_wb_i.alu_result;
+            2'b01: wb_id_o.rd_data = mem_wb_i.mem_data;
+            2'b10: wb_id_o.rd_data = mem_wb_i.pc_p4;
+            default: wb_id_o.rd_data = 32'b0;
+        endcase
     end
 
-    // // output regs need to be updated on the negedge
-    // // value will be stable on the posedge (during the write stage of the reg file) 
-    // always @ (negedge clock) begin
-    //     write_data <= write_data_reg;
-    //     write_addr <= reg_dest_reg;
-    //     write_enable_out <= write_enable_reg;
-
-    //     // DEBUG PRINT
-    //     //$display("WRITEBACK STAGE \n[Time: %0t] Write enable: %0b", $time, write_enable_reg);
-    // end
+    assign wb_id_o.rd_wen = mem_wb_i.rd_wen;
+    assign wb_id_o.rd_addr = mem_wb_i.rd_addr;
 
 endmodule

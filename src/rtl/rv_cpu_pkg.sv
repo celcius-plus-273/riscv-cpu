@@ -1,6 +1,16 @@
 `ifndef RV_CPU_PKG
 `define RV_CPU_PKG
 
+// ========================================================= //
+//   RISC-V CPU Package
+//   - defines global parameters, enums, and structs for the CPU
+// ========================================================= //
+
+// ============================== //
+//             IFDEFs
+// ============================== //
+// `define SRAM_MACRO
+
 package rv_cpu_pkg;
 
     // ============================== //
@@ -99,6 +109,13 @@ package rv_cpu_pkg;
         logic [31:0]    pc_addr;    // branch/jump target address
     } ex_if_s;
 
+    typedef struct packed {
+        // writeback
+        logic           rd_wen;
+        logic [4:0]     rd_addr;
+        logic [31:0]    rd_data;
+    } wb_id_s;
+
     // ============================== //
     //        Pipelines (regs)
     // ============================== //
@@ -152,11 +169,15 @@ package rv_cpu_pkg;
     } ex_mem_s;
 
     typedef struct packed {
-        // writeback
+        logic [31:0]    pc_p4; // for link rd
+        logic [31:0]    alu_result;
+        logic [31:0]    mem_data; // from memory read
+
+        // passthrough
+        logic [1:0]     wb_src;
         logic           rd_wen;
         logic [4:0]     rd_addr;
-        logic [31:0]    rd_data;
-    } wb_id_s;
+    } mem_wb_s;
 
 endpackage
 `endif
