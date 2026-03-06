@@ -1,16 +1,23 @@
-module alu 
+import rv_cpu_pkg::id_ex_s;
+
+module alu
 #(
     parameter WORD_SIZE = 32
 )
 (
-    // control signas
-    input wire clock, // synchronizes alu result with remaining pipeline
+    // clk, rst
+    input wire clk_i, // synchronizes alu result with remaining pipeline
+    input wire rstn_i,
+
+    // Execute stage interfaces
+
+
     input wire [6:0] funct7,
     input wire [2:0] funct3,
 
     // input ports
     input wire [WORD_SIZE-1:0] source1,
-    input wire [WORD_SIZE-1:0] source2, 
+    input wire [WORD_SIZE-1:0] source2,
 
     // output port!
     output reg [WORD_SIZE-1:0] result
@@ -23,9 +30,9 @@ module alu
         case (funct3)
             // add and subtract functions :)
             3'b000: begin
-                result <= funct7[5] ? (source1 - source2) : (source1 + source2); 
-            end 
-        
+                result <= funct7[5] ? (source1 - source2) : (source1 + source2);
+            end
+
             // shift left logical function
             3'b001: begin
                 result <= source1 << source2;
@@ -36,7 +43,7 @@ module alu
             3'b010: begin
                 result <= source1 < source2;
             end
-            
+
             // set less than unsigned
             3'b011: begin
                 result <= source1 < source2;
@@ -51,19 +58,19 @@ module alu
             3'b101: begin
                 result <= funct7[5] ? (source1 >>> source2) : (source1 >> source2);
             end
-                
+
             // or
             3'b110: begin
                 result <= source1 | source2;
             end
- 
+
             // and
             3'b111: begin
                 result <= source1 & source2;
             end
 
             // this is an unkown case for funct3 -> output a value of zero for this case
-            default: 
+            default:
                 result <= 0;
         endcase
     end
