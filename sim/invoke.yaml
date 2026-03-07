@@ -1,48 +1,27 @@
-# Simulation Specific Configuration (VCS)
-# Only VCS is supported at the moment
+# Simulation Configuration
 SIM_SETUP:
-    SIMULATOR: vcs          # choose your simulator (only VCS is supported...)
-    STAGE: behav            # simulation stage: behav | syn | apr
-    TESTBENCH: tb_dsu_air_top
-    TOPLEVEL: dsu_air_top
+    SIMULATOR: verilator
+    TOPLEVEL: rv_cpu        # default DUT top-level (also determines filelist name)
 
-# RTL Module Parameters
-# RTL_PARAMS:
-    # DATA_WIDTH: 14
-    # TRIG_WIDTH: 2
-    # WORD_FACTOR: 3
-    # MEM_DEPTH: 64
-
-# Define the simulation environment variables
+# Define simulation environment paths (relative to sim/)
 SIM_ENV:
-    SYNOPSYS_HOME: /tools/software/synopsys # synopsys path
-    VCS_HOME: /tools/software/vcs           # vcs path
-    PRJ_DIR: ../..                          # project root directory
+    PRJ_DIR: ../..
     SRC_RTL: ../../src/rtl
     SRC_VERIF: ../../src/verif
-    SRC_SCAN: ../../src/scan
 
-# Define build arguments for VCS
+# Build arguments for Verilator
 BUILD_ARGS:
-    - "-sverilog"                   # systemverilog support
-    - "-full64"                     # 64-bit mode (required for large designs)
-    - "+v2k"                        # verilog-2001 support
-    - "-debug_access+all"           # full debug visibility (higher visibility results in longer sim times)
-    - "-debug_region+cell+encrypt"  # debug encrypted modules and cells
-    - "-kdb"                        # knowledge database for Verdi
-    - "+lint=all"                   # enable all lint warnings
-    - "-timescale=1ns/1ps"          # set default timescale (use this instead of the runner's timescale argument)
-    # - "-lca"                        # unlocks BETA features
+    - "-sv"                 # SystemVerilog
+    - "--timing"            # enable # delays
+    - "--trace-fst"         # high-performance FST waveforms
+    - "--trace-structs"     # expose SV struct members in waveform
+    - "--Wall"              # strict linting
+    - "-Wno-WIDTHEXPAND"
+    - "-Wno-fatal"          # warnings as warnings, not errors
+    - "-O3"                 # maximum simulation speed
+    - "--threads"
+    - "4"                   # parallel compilation
 
-# +defines for your VCS simulation
+# Verilog defines passed at compile time
 VERILOG_DEFINES:
-    "DEBUG": 1
-    "FSDB": 0
-    "VCD": 1
-    "COCOTB_SIM": 1
-
-# plusargs for your VCS simulation (haven't used in cocotb yet)
-# SIM_PLUSARGS:
-#     testname: base_test
-#     numtests: 1
-
+    "DBG": 1

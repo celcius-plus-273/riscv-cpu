@@ -1,26 +1,26 @@
 // ============================== //
 //         Package Imports
 // ============================== //
-// Wire Interfaces
-import rv_cpu_pkg::id_ctl_s;    // decode to control
-import rv_cpu_pkg::ctl_id_s;    // control to decode
-import rv_cpu_pkg::id_hzd_s;    // decode to hazard
+// // Wire Interfaces
+// import rv_cpu_pkg::id_ctl_s;    // decode to control
+// import rv_cpu_pkg::ctl_id_s;    // control to decode
+// import rv_cpu_pkg::id_hzd_s;    // decode to hazard
 
-// Pipeline Registers
-import rv_cpu_pkg::if_id_s;    // IF to ID interface
-import rv_cpu_pkg::id_ex_s;
-import rv_cpu_pkg::wb_id_s;
+// // Pipeline Registers
+// import rv_cpu_pkg::if_id_s;    // IF to ID interface
+// import rv_cpu_pkg::id_ex_s;
+// import rv_cpu_pkg::wb_id_s;
 
-// Enums
-import rv_cpu_pkg::imm_sel_e;
+// // Enums
+// import rv_cpu_pkg::imm_sel_e;
 
-module decode
+module pipe_id
 #(
     // parameters
-    parameter int RF_DEPTH = 32,    // reg file depth
+    parameter int RF_DEPTH = 32    // reg file depth
 
     // derived parameters
-    localparam int RF_ADDR_WIDTH = $clog2(RF_DEPTH)
+    // localparam int RF_ADDR_WIDTH = $clog2(RF_DEPTH)
 )
 (
     // clk and rst
@@ -39,6 +39,8 @@ module decode
     input wb_id_s       wb_id_i,    // WB to ID interface
     output id_ex_s      id_ex_o     // ID to EX Interface
 );
+
+    import rv_cpu_pkg::*;
     // ======================== //
     //       DECODE STAGE
     // ======================== //
@@ -53,6 +55,8 @@ module decode
     // ======================== //
     //        Variables
     // ======================== //
+    logic [6:0]     opcode;     // opcode field of the instruction (for control)
+
     // inst_i becuase I am too lazy to change all of the references
     logic [31:0]    inst_i;     // instruction input from IF stage (assigned from if_id_i)
 
@@ -68,6 +72,7 @@ module decode
     logic [11:0]    imm;    // signed immediate   [12 bits]
     logic [4:0]     uimm;   // unsigned immediate [5 bits]
     logic [19:0]    upimm;  // upper immediate    [20 bits]
+    logic [11:0]    st_imm; // store immediate    [12 bits]
     logic [11:0]    bta_imm; // branch target imm [12 bits]
     logic [19:0]    jta_imm; // jump target imm   [20 bits]
 
@@ -139,7 +144,7 @@ module decode
     // instantiate the register file
     reg_file #(
         .WIDTH(32),
-        .DEPTH(32)
+        .DEPTH(RF_DEPTH)
     ) reg_file_inst (
         // clk, rst
         .clk_i(clk_i),
@@ -164,7 +169,20 @@ module decode
     // Decode to EX pipeline register
     always_ff @( posedge clk_i or negedge rstn_i ) begin : output_ff
         if (!rstn_i) begin
-            id_ex_o <= '0;
+            id_ex_o.pc          <= '0;
+            id_ex_o.pc_p4       <= '0;
+            id_ex_o.imm         <= '0;
+            id_ex_o.alu_op      <= '0;
+            id_ex_o.alu_src     <= '0;
+            id_ex_o.mem_rd_en   <= '0;
+            id_ex_o.mem_wr_en   <= '0;
+            id_ex_o.mem_mask    <= '0;
+            id_ex_o.mem_signed  <= '0;
+            id_ex_o.is_branch   <= '0;
+            id_ex_o.is_jump     <= '0;
+            id_ex_o.wb_src      <= '0;
+            id_ex_o.rd_wen      <= '0;
+            id_ex_o.rd_addr     <= '0;
         end
         else begin
             // add flush?
@@ -179,6 +197,9 @@ module decode
 
             id_ex_o.mem_rd_en   <= ctl_id_i.mem_rd_en;
             id_ex_o.mem_wr_en   <= ctl_id_i.mem_wr_en;
+            id_ex_o.mem_mask    <= ctl_id_i.mem_mask;
+            id_ex_o.mem_signed  <= ctl_id_i.mem_signed;
+
             id_ex_o.is_branch   <= ctl_id_i.is_branch;
             id_ex_o.is_jump     <= ctl_id_i.is_jump;
             id_ex_o.wb_src      <= ctl_id_i.wb_src;

@@ -3,7 +3,7 @@
 
 // ========================================================= //
 //   RISC-V CPU Package
-//   - defines global parameters, enums, and structs for the CPU
+//   - defines global parameters, enums, and structs
 // ========================================================= //
 
 // ============================== //
@@ -16,10 +16,14 @@ package rv_cpu_pkg;
     // ============================== //
     //        Global Parameters
     // ============================== //
-    parameter REG_FILE_DEPTH = 32;
+    parameter REG_FILE_DEPTH    = 32;   // Reg File size (32 registers)
+    parameter I_MEM_DEPTH       = 64;   // I-cache size
+    parameter D_MEM_DEPTH       = 256;  // D-cache size
 
     // derived parameters
-    parameter RF_ADDR_WIDTH = $clog2(REG_FILE_DEPTH);
+    parameter RF_ADDR_WIDTH     = $clog2(REG_FILE_DEPTH);
+    parameter I_MEM_ADDR_WIDTH  = $clog2(I_MEM_DEPTH);
+    parameter D_MEM_ADDR_WIDTH  = $clog2(D_MEM_DEPTH);
 
     // Enums
     typedef enum logic [3:0] {
@@ -91,9 +95,12 @@ package rv_cpu_pkg;
         // memory rd/wr control signals
         logic           mem_rd_en;
         logic           mem_wr_en;
+        logic [3:0]     mem_mask; // determines which bytes to enable for load/store
+        logic           mem_signed; // signed vs unsinged load
         // jump & brach control signals
         logic           is_branch;
         logic           is_jump;
+        logic           is_jalr;
     } ctl_id_s;
 
     typedef struct packed {
@@ -140,6 +147,8 @@ package rv_cpu_pkg;
         // memory rd/wr control signals
         logic           mem_rd_en;
         logic           mem_wr_en;
+        logic [3:0]     mem_mask; // determines which bytes to enable for load/store
+        logic           mem_signed; // signed vs unsinged load
 
         // jump & brach control signals
         logic           is_branch;
@@ -160,6 +169,8 @@ package rv_cpu_pkg;
         // memory rd/wr control signals
         logic           mem_rd_en;
         logic           mem_wr_en;
+        logic [3:0]     mem_mask; // determines which bytes to enable for load/store
+        logic           mem_signed; // signed vs unsigned load
         logic [31:0]    mem_wr_data; // from rs2_data
 
         // passthrough
@@ -171,7 +182,13 @@ package rv_cpu_pkg;
     typedef struct packed {
         logic [31:0]    pc_p4; // for link rd
         logic [31:0]    alu_result;
+        logic [31:0]    addr_result;
         logic [31:0]    mem_data; // from memory read
+
+        // sign extend correctly
+        logic           mem_rd_en;
+        logic [3:0]     mem_mask; // determines which bytes to enable for load/store
+        logic           mem_signed; // signed vs unsigned load
 
         // passthrough
         logic [1:0]     wb_src;

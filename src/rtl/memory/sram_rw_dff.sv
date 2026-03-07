@@ -6,6 +6,7 @@ module sram_rw_dff
     parameter WIDTH,
 
     // localparams
+    parameter NUM_BYTES = WIDTH / 8,
     parameter ADDR_WIDTH = $clog2(DEPTH)
 ) (
     // clk, rst
@@ -17,6 +18,7 @@ module sram_rw_dff
     input logic wenb_i,         // write enable (active low)
 
     // Single Port memory
+    input  logic [NUM_BYTES-1 : 0]      mask_i, // byte mask for read & writes
     input  logic [ADDR_WIDTH-1 : 0]     addr_i,
     input  logic [WIDTH-1  : 0]         data_i,
     output logic [WIDTH-1  : 0]         data_o
@@ -41,13 +43,23 @@ module sram_rw_dff
         // normal behavior
         else begin
             // memory can only read OR write (can't do both)
-            if (wenb_i) begin
-                // wenb = 1: READ
-                data_o <= cenb_i ? data_o : mem_array[addr_i];
-            end
-            else begin
-                // wenb = 0: WRITE
-                mem_array[addr_i] <= cenb_i ? mem_array[addr_i] : data_i;
+            if (~cenb_i) begin
+                if (wenb_i) begin
+                    // wenb = 1: READ
+                    for (i = 0; i < NUM_BYTES; i += 1) begin
+                        if (mask_i[i]) begin
+                            data_o[((i+1)*8)-1 -: 8] <= mem_array[addr_i >> 2][((i+1)*8)-1 -: 8];
+                        end
+                    end
+                end
+                else begin
+                    // wenb = 0: WRITE
+                    for (i = 0; i < NUM_BYTES; i += 1) begin
+                        if (mask_i[i]) begin
+                            mem_array[addr_i >> 2][((i+1)*8)-1 -: 8] <= data_i[((i+1)*8)-1 -: 8];
+                        end
+                    end
+                end
             end
         end
     end

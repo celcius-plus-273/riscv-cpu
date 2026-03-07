@@ -1,14 +1,19 @@
+// ======================== //
+//         Imports
+// ======================== //
 import rv_cpu_pkg::id_ex_s;
 import rv_cpu_pkg::ex_mem_s;
+import rv_cpu_pkg::ex_if_s;
+// import rv_cpu_pkg::*;
 
-module execute
+module pipe_ex
 (
     // clk, rst
     input logic     clk_i,
     input logic     rstn_i,
 
     // Execute Stage Interfaces (Wires)
-    output ex_if_s   ex_if_o,       // EX to IF interface for branch target update
+    output ex_if_s  ex_if_o,       // EX to IF interface for branch target update
 
     // Execute Stage Interfaces (Reg Pipelines)
     input id_ex_s   id_ex_i,        // ID to EX interface
@@ -61,7 +66,17 @@ module execute
     // output reg pipeline
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
-            ex_mem_o <= '0;
+            ex_mem_o.pc_p4          <= '0;
+            ex_mem_o.alu_result     <= '0;
+            ex_mem_o.addr_result    <= '0;
+            ex_mem_o.mem_rd_en      <= '0;
+            ex_mem_o.mem_wr_en      <= '0;
+            ex_mem_o.mem_mask       <= '0;
+            ex_mem_o.mem_signed     <= '0;
+            ex_mem_o.mem_wr_data    <= '0;
+            ex_mem_o.wb_src         <= '0;
+            ex_mem_o.rd_wen         <= '0;
+            ex_mem_o.rd_addr        <= '0;
         end else begin
             // no flush?
 
@@ -71,6 +86,8 @@ module execute
 
             ex_mem_o.mem_rd_en      <= id_ex_i.mem_rd_en;
             ex_mem_o.mem_wr_en      <= id_ex_i.mem_wr_en;
+            ex_mem_o.mem_mask       <= id_ex_i.mem_mask;
+            ex_mem_o.mem_signed     <= id_ex_i.mem_signed;
             ex_mem_o.mem_wr_data    <= id_ex_i.rs2_data;
 
             ex_mem_o.wb_src         <= id_ex_i.wb_src;

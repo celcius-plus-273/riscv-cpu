@@ -1,7 +1,8 @@
 import rv_cpu_pkg::ex_if_s;
 import rv_cpu_pkg::if_id_s;
+// import rv_cpu_pkg::*;
 
-module fetch
+module pipe_if
 #(
     parameter I_MEM_DEPTH = 64
 )
@@ -49,7 +50,8 @@ module fetch
     // output reg pipeline
     always_ff @(posedge clk_i or negedge rstn_i) begin
         if (!rstn_i) begin
-            if_id_o <= '0;
+            if_id_o.pc    <= '0;
+            if_id_o.pc_p4 <= '0;
         end
         else begin
             // add flush?

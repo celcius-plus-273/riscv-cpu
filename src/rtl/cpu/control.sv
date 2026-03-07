@@ -1,13 +1,10 @@
-import rv_cpu_pkg::id_ctl_s;
-import rv_cpu_pkg::ctl_id_s;
-import rv_cpu_pkg::inst_type_e;
-import rv_cpu_pkg::imm_sel_e;
-import rv_cpu_pkg::alu_op_e;
+// import rv_cpu_pkg::id_ctl_s;
+// import rv_cpu_pkg::ctl_id_s;
+// import rv_cpu_pkg::inst_type_e;
+// import rv_cpu_pkg::imm_sel_e;
+// import rv_cpu_pkg::alu_op_e;
 
 module control
-#(
-    parameter WORD_SIZE = 32
-)
 (
     // clock
     input logic     clk_i,
@@ -18,6 +15,8 @@ module control
     input id_ctl_s  id_ctl_i,       // control signals from the decode stage
     output ctl_id_s ctl_id_o        // control signals to the decode stage
 );
+
+    import rv_cpu_pkg::*;
 
     // ======================== //
     //        Variables
@@ -44,10 +43,14 @@ module control
     // memory read/write enables (wire)
     logic           mem_rd_en;
     logic           mem_wr_en;
+    // note that mask is one-hot byte encoded (bit[0] = byte 0, bit[1] = byte 1, etc.)
+    logic [3:0]     mem_mask; // determines which bytes to enable for load/store
+    logic           mem_signed; // signed vs unsinged load
 
     // jump & branch control signals (wire)
     logic           is_branch;
     logic           is_jump;
+    logic           is_jalr;
 
     // ALU operation type signal
     alu_op_e        alu_op; // determines the ALU operation to be performed
@@ -119,6 +122,8 @@ module control
         wb_src      = 2'b00;    // default to alu result writeback
         mem_rd_en   = 1'b0;     // default to no memory read
         mem_wr_en   = 1'b0;     // default to no memory write
+        mem_signed  = 1'b0;     // default to unsigned load
+        mem_mask    = 4'b0000;  // default to no bytes enabled for memory access
         is_branch   = 1'b0;     // default to no branch
         is_jump     = 1'b0;     // default to no jump
         is_jalr     = 1'b0;     // default to no jalr (for special target address calculation)
@@ -133,12 +138,12 @@ module control
 
                 // ALU OP
                 case (funct3)
-                    3'b000: alu_op = (funct7[6] == 1'b1) ? ALU_SUB : ALU_ADD; // sub vs add
+                    3'b000: alu_op = (funct7[5] == 1'b1) ? ALU_SUB : ALU_ADD; // sub vs add
                     3'b001: alu_op = ALU_SLL; // sll
                     3'b010: alu_op = ALU_SLT; // slt
                     3'b011: alu_op = ALU_SLTU; // sltu
                     3'b100: alu_op = ALU_XOR; // xor
-                    3'b101: alu_op = (funct7[6] == 1'b1) ? ALU_SRA : ALU_SRL; // sra vs srl
+                    3'b101: alu_op = (funct7[5] == 1'b1) ? ALU_SRA : ALU_SRL; // sra vs srl
                     3'b110: alu_op = ALU_OR; // or
                     3'b111: alu_op = ALU_AND; // and
                     default: alu_op = ALU_INVALID;
@@ -161,7 +166,7 @@ module control
                     3'b110: alu_op = ALU_OR; // ori
                     3'b111: alu_op = ALU_AND; // andi
                     3'b001: alu_op = ALU_SLL; // slli
-                    3'b101: alu_op = (funct7[6] == 1'b1) ? ALU_SRA : ALU_SRL; // srai vs srli
+                    3'b101: alu_op = (funct7[5] == 1'b1) ? ALU_SRA : ALU_SRL; // srai vs srli
                     default: alu_op = ALU_INVALID;
                 endcase
             end
@@ -173,6 +178,33 @@ module control
                 mem_rd_en   = 1'b1; // I-type load reads from memory
                 alu_op      = ALU_ADD; // load uses add for address calculation
                 imm_sel     = IMM_imm; // load uses I-type immediate
+
+                case (funct3)
+                    3'b000: begin
+                        mem_mask = 4'b0001; // lb
+                        mem_signed = 1'b1; // signed load
+                    end
+                    3'b001: begin
+                        mem_mask = 4'b0011; // lh
+                        mem_signed = 1'b1; // signed load
+                    end
+                    3'b010: begin
+                        mem_mask = 4'b1111; // lw
+                        mem_signed = 1'b1; // signed load
+                    end
+                    3'b100: begin
+                        mem_mask = 4'b0001; // lbu
+                        mem_signed = 1'b0; // unsigned load
+                    end
+                    3'b101: begin
+                        mem_mask = 4'b0011; // lhu
+                        mem_signed = 1'b0; // unsigned load
+                    end
+                    default: begin
+                        mem_mask = 'x;
+                        mem_signed = 'x;
+                    end
+                endcase
             end
             i_jalr: begin
                 r1_en       = 1'b1; // I-type instructions always read from rs1
@@ -192,6 +224,13 @@ module control
                 mem_wr_en   = 1'b1; // S-type instructions write to memory
                 alu_op      = ALU_ADD; // S-type uses add for address calculation
                 imm_sel     = IMM_simm; // S-type uses S-type immediate
+
+                case (funct3)
+                    3'b000: mem_mask = 4'b0001; // sb
+                    3'b001: mem_mask = 4'b0011; // sh
+                    3'b010: mem_mask = 4'b1111; // sw
+                    default: mem_mask = 'x;
+                endcase
             end
             b_type: begin
                 r1_en       = 1'b1; // B-type instructions always read from rs1
@@ -233,7 +272,7 @@ module control
             end
             INVALID: begin
                 // flush pipeline??
-                $display("[Time: %0t] Invalid instruction detected", $time);
+                // $display("[Time: %0t] Invalid instruction detected", $time);
             end
             default: begin
                 r1_en       = 1'bx;
@@ -265,6 +304,8 @@ module control
     assign ctl_id_o.wb_src      = wb_src;
     assign ctl_id_o.mem_rd_en   = mem_rd_en;
     assign ctl_id_o.mem_wr_en   = mem_wr_en;
+    assign ctl_id_o.mem_mask    = mem_mask;
+    assign ctl_id_o.mem_signed  = mem_signed;
     assign ctl_id_o.is_branch   = is_branch;
     assign ctl_id_o.is_jump     = is_jump;
     assign ctl_id_o.is_jalr     = is_jalr;

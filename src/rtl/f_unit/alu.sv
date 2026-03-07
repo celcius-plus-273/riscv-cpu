@@ -1,4 +1,3 @@
-import rv_cpu_pkg::alu_op_e;
 module alu
 (
     // input op type
@@ -9,6 +8,9 @@ module alu
     // output result
     output logic [31:0] result_o
 );
+
+    import rv_cpu_pkg::*;
+
     // ALU is big combinational logic
     always_comb begin
         case (op_i)

@@ -1,154 +1,236 @@
-from invoke import task
-from cocotb_tools.runner import get_runner
-from invoke_tools import *
+"""
+Invoke task definitions for the RISC-V CPU simulation flow.
+
+Usage examples
+--------------
+  inv build                               # compile default TOPLEVEL (rv_cpu)
+  inv build --toplevel rv_cpu             # explicit toplevel
+
+  inv sim  --testbench tb_r_type          # R-type ALU tests
+  inv sim  --testbench tb_store           # SW / SH / SB tests
+  inv sim  --testbench tb_load            # LW / LH / LB / LHU / LBU + roundtrip tests
+  inv sim  --testbench tb_r_type --toplevel rv_cpu
+
+  inv run  --testbench tb_r_type          # build + sim in one step
+  inv sim_all                             # build once, run every testbench
+
+  inv clean                               # remove sim_build/ and __pycache__/
+  inv clean --src                         # also remove symlinked .py / .include
+
+Filelist convention
+-------------------
+  Each DUT top-level has exactly one filelist:
+      src/verif/include/{toplevel}.include
+  The testbench Python files live in:
+      src/verif/testbench/{testbench}.py
+"""
+
 import os
 import shutil
 from pathlib import Path
 
+from invoke import task
+from cocotb_tools.runner import get_runner
+from invoke_tools import force_symlink, parse_verilog_include
+
+# Resolved at import time so it stays accurate regardless of later os.chdir calls
+SIM_DIR = Path(__file__).parent.resolve()
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _toplevel(c, toplevel):
+    """Return the effective top-level name, falling back to config default."""
+    return toplevel or c.SIM_SETUP.TOPLEVEL
+
+
+def _enter_build_dir(tl: str) -> None:
+    """
+    Change into the per-DUT build directory, creating it if necessary.
+
+    Always resets to SIM_DIR first so that this function is idempotent
+    and safe to call multiple times within the same process (e.g. from run()).
+    """
+    os.chdir(SIM_DIR)
+    build_dir = SIM_DIR / tl
+    build_dir.mkdir(exist_ok=True)
+    os.chdir(build_dir)
+
+
+def _remove(path: Path) -> None:
+    """Remove a file, symlink, or directory tree."""
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.is_dir():
+        shutil.rmtree(path)
+
+
+# ---------------------------------------------------------------------------
+# Tasks
+# ---------------------------------------------------------------------------
+
 @task
-def link(c):
+def build(c, toplevel=None):
     """
-    Link source directories (Equivalent to 'make link').
-    Note: Modify this task if your directory structure is different
+    Compile the RTL for the given top-level DUT.
+
+    Reads the filelist  src/verif/include/{toplevel}.include  and runs
+    Verilator to produce a compiled simulation object in
+    sim/{toplevel}/sim_build/.
+
+    This step only needs to be re-run when the RTL changes.  Multiple
+    testbenches can be run against the same compiled build.
     """
-    stage = c.SIM_SETUP.STAGE or "behav"
-    try:
-        os.chdir(stage)
-    except:
-        print(f"Error: Simulation stage directory '{stage}' does not exist")
-        return
+    tl = _toplevel(c, toplevel)
+    _enter_build_dir(tl)
 
-    # Define your paths (fetch from env or defaults)
-    rtl_folder  = c.SIM_ENV.SRC_RTL or "../../src/rtl"
-    src_verif   = c.SIM_ENV.SRC_VERIF or "../../src/verif"
-    src_scan   = c.SIM_ENV.SRC_SCAN or "../../src/scan"
-    testbench   = src_verif + "/testbench" + f"/{c.SIM_SETUP.TESTBENCH}.py"
+    # Symlink the filelist (named after the toplevel DUT)
+    inc_file = f'{tl}.include'
+    force_symlink(
+        f'{c.SIM_ENV.SRC_VERIF}/include/{inc_file}',
+        inc_file,
+    )
 
-    # 1. ln -s -f $(RTL_FOLDER) .
-    # When linking a folder to '.', the link name is the folder name
-    # force_symlink(rtl_folder, "rtl")
+    sources = parse_verilog_include(c.SIM_ENV.SRC_RTL, inc_file)
 
-    # 2. ln -s -f $(TB_FOLDER) .
-    # force_symlink(tb_folder, Path(tb_folder).name)
-    force_symlink(testbench, Path(testbench).name)
-
-    # 3. ln -s -f $(SRC_VERIF)/scripts .
-    force_symlink(f"{src_verif}/scripts", "scripts")
-    force_symlink(f"{src_verif}/cocotb_tasks", "cocotb_tasks")
-
-    # 4. ln -s -f $(SRC_SCAN) .
-    # force_symlink(src_scan, "scan")
-
-    # 4. ln -s -f $(SRC_VERIF)/include/$(TESTBENCH).include .
-    include_file = f"{c.SIM_SETUP.TESTBENCH}.include"
-    force_symlink(f"{src_verif}/include/{include_file}", include_file)
-
-@task
-def vcs(c):
-    """
-    Run the cocotb testbench using Synopsys VCS.
-    """
-    # Change to corresponding simulation directory based on stage (behav, syn. apr)
-    stage = c.SIM_SETUP.STAGE or "behav"
-    try:
-        os.chdir(stage)
-    except:
-        print(f"Error: Simulation stage directory '{stage}' does not exist")
-        return
-
-    # Parse Configuration and Build Flags
-    src_dir = c.SIM_ENV.PRJ_DIR + "/src"
-    sources = parse_verilog_include(src_dir, f"{c.SIM_SETUP.TESTBENCH}.include")     # verilog sources from .include file
-    vcs_build_args = c.BUILD_ARGS                                           # VCS arguments
-    # sim_plusargs = c.SIM_PLUSARGS                                           # plusargs (TODO: not needed for python cocotb)
-    compile_defines = c.VERILOG_DEFINES                                     # +defines for VCS
-    # module_params = c.RTL_PARAMS                                            # top level module parameters
-    testbench = f'{c.SIM_SETUP.STAGE}.{c.SIM_SETUP.TESTBENCH}'    # cocotb testbench (without the .py)
-
-    # Include directories (e.g. Synopsys DesignWare)
-    include_dirs = []
-    SYNOPSYS_HOME = c.SIM_ENV.SYNOPSYS_HOME
-    if SYNOPSYS_HOME:
-        include_dirs.append(f"{SYNOPSYS_HOME}/syn/latest/dw/sim_ver")
-    else:
-        print("Warning: $SYNOPSYS env var not set. DesignWare includes may fail.")
-
-    # Cocotb Sim Runner
     runner = get_runner(c.SIM_SETUP.SIMULATOR)
-
-    # Build (Compile)
     runner.build(
         sources=sources,
-        hdl_toplevel=c.SIM_SETUP.TOPLEVEL,
-        includes=include_dirs,      # VCS includedir
-        defines=compile_defines,
-        build_args=vcs_build_args,
-        # parameters=module_params,
-        # timescale=("1ns", "10ps"), # THIS DOES NOT WORK... SPECIFY TIMESCALE ON YOUR TOP LEVEL MODULE
-        always=True,
-        # waves=True
+        hdl_toplevel=tl,
+        defines=c.VERILOG_DEFINES,
+        build_args=c.BUILD_ARGS,
+        timescale=('1ns', '10ps'),
+        waves=True,
     )
 
-    # Run (Simulate)
+
+@task
+def sim(c, testbench, toplevel=None):
+    """
+    Run a cocotb testbench against the pre-built DUT.
+
+    The testbench Python file is taken from
+    src/verif/testbench/{testbench}.py and symlinked into the build
+    directory automatically.
+
+    The RTL must have been compiled with `inv build` beforehand.
+    """
+    tl = _toplevel(c, toplevel)
+    _enter_build_dir(tl)
+
+    # Symlink ALL Python files from the testbench directory into the build
+    # directory. This ensures that shared helpers (e.g. tb_helpers.py) are
+    # always present alongside the requested testbench module.
+    tb_dir = Path(c.SIM_ENV.SRC_VERIF) / 'testbench'
+    for py_file in sorted(tb_dir.glob('*.py')):
+        force_symlink(py_file, py_file.name)
+
+    runner = get_runner(c.SIM_SETUP.SIMULATOR)
     runner.test(
-        hdl_toplevel=c.SIM_SETUP.TOPLEVEL,
-        test_module=testbench,
-        # plusargs=sim_plusargs,
-        waves=True
+        hdl_toplevel=tl,
+        hdl_toplevel_lang="verilog",   # Verilator only supports "verilog" (.sv counts as verilog)
+        test_module=f'{tl}.{testbench}',
+        waves=True,
     )
 
-@task
-def run_testbench(c):
-    pass
 
 @task
-def clean(c, src=False):
+def run(c, testbench, toplevel=None):
     """
-    Clean up build artifacts
+    Compile the RTL and run a testbench in a single step.
+
+    Equivalent to:
+        inv build [--toplevel TL]
+        inv sim   --testbench TB [--toplevel TL]
     """
+    build(c, toplevel=toplevel)
+    sim(c, testbench=testbench, toplevel=toplevel)
 
-    # Define paths to clean up (sim artifacts/outputs)
-    clean_paths = [
-        "sim_build",
-        "__pycache__",
-        "csrc",
-        "simv.daidir",
-        "ucli.key",
-        "simv",
-        "sim_build"
-    ]
 
-    # Sources to be cleaned if 'src' flag is set
-    src_paths = [
-        "rtl",
-        "testbench",
-        "scripts",
-        "cocotb_tasks",
-        "scan",
-    ]
+@task
+def sim_all(c, toplevel=None):
+    """
+    Build the RTL once, then run every discovered testbench.
 
-    wildcard_names = [
-        "tb_*.include",
-        "tb_*.py"
-    ]
+    Testbenches are auto-discovered by scanning
+    src/verif/testbench/ for .py files that contain @cocotb.test().
+    Helper-only files (e.g. tb_helpers.py) are automatically excluded.
 
+    A PASS / FAIL summary table is printed at the end.
+    Exits with code 1 if any testbench failed.
+    """
+    # Discover testbenches before entering any build directory
+    tb_src_dir = Path('../src/verif/testbench')
+    testbenches = sorted(
+        p.stem
+        for p in tb_src_dir.glob('*.py')
+        if '@cocotb.test()' in p.read_text()
+    )
+
+    if not testbenches:
+        print('No testbenches found.')
+        return
+
+    print(f'Discovered {len(testbenches)} testbench(es): {", ".join(testbenches)}')
+
+    # Compile RTL once
+    build(c, toplevel=toplevel)
+
+    # Run each testbench and collect pass/fail
+    results = {}
+    for tb in testbenches:
+        sep = '=' * 60
+        print(f'\n{sep}\nRunning {tb}\n{sep}')
+        try:
+            sim(c, testbench=tb, toplevel=toplevel)
+            results[tb] = True
+        except Exception:
+            results[tb] = False
+
+    # Print summary table
+    sep = '=' * 60
+    print(f'\n{sep}\nsim_all summary\n{sep}')
+    col = max(len(tb) for tb in results) + 2
+    for tb, passed in results.items():
+        print(f'  {tb:<{col}} {"PASS" if passed else "FAIL"}')
+    n_fail = sum(1 for v in results.values() if not v)
+    n_pass = len(results) - n_fail
+    print(f'{sep}\n  {n_pass} passed, {n_fail} failed')
+
+    if n_fail:
+        raise SystemExit(1)
+
+
+@task
+def clean(c, toplevel=None, src=False):
+    """
+    Remove build artifacts for the given top-level.
+
+    By default removes sim_build/ and __pycache__/ only.
+    Pass --src to also remove symlinked .py and .include files.
+    """
+    tl = _toplevel(c, toplevel)
+    os.chdir(SIM_DIR)
+    build_dir = SIM_DIR / tl
+
+    if not build_dir.exists():
+        print(f'Nothing to clean: {build_dir} does not exist')
+        return
+
+    # Always remove build outputs
+    for name in ('sim_build', '__pycache__'):
+        p = build_dir / name
+        if p.exists():
+            _remove(p)
+            print(f'Removed {p}')
+
+    # Optionally remove symlinked source files
     if src:
-        clean_paths.extend(src_paths) # extenc vs append?
+        for pattern in ('*.py', '*.include'):
+            for p in build_dir.glob(pattern):
+                _remove(p)
+                print(f'Removed {p}')
 
-    for path in clean_paths:
-        full_path = f'{c.SIM_SETUP.STAGE}/{path}'
-        if os.path.exists(full_path):
-            if os.path.islink(full_path):
-                os.unlink(full_path)
-            elif os.path.isdir(full_path):
-                shutil.rmtree(full_path)
-            else:
-                os.remove(full_path)
-            print(f"Removed {full_path}")
-
-    for name in wildcard_names:
-        for path in Path(c.SIM_SETUP.STAGE).glob(name):
-            os.remove(path)
-            print(f"Removed {path}")
-
-    print(f"{c.SIM_SETUP.STAGE} has been cleaned")
+    print(f'Cleaned sim/{tl}')
