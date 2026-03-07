@@ -1,7 +1,6 @@
-# ignore the simulation outputs
-target/test
-target/alu_test
-target/reg_test
+# ignore the simulation build directory
+sim/behav
+sim/rv_cpu
 
 # ignore the vivado project
 vivado/
