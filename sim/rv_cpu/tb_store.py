@@ -1,1 +1,0 @@
-../../src/verif/testbench/tb_store.py

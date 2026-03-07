@@ -1,1 +1,0 @@
-../../src/verif/testbench/tb_r_type.py
