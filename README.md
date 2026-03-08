@@ -2,6 +2,8 @@
 
 A 32-bit RISC-V CPU implemented in SystemVerilog, simulated with Verilator and verified with cocotb.
 
+Note: Microarchitecture is based on Harris & Harris DDCA 5-stage In-Order Pipelined RV32I processor with added optimizations
+
 ## Motivation
 
 - Putting concepts learned from Advanced Computer Architecture into practice
