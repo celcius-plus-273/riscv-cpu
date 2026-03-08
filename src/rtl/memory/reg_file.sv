@@ -73,8 +73,8 @@ module reg_file
     end
 
     always_comb begin : rd_forward_logic
-        r1_mem_data = r1_en_i ? mem[r1_addr_i] : r1_data_o;
-        r2_mem_data = r2_en_i ? mem[r2_addr_i] : r2_data_o;
+        r1_mem_data = r1_en_i ? mem[r1_addr_i] : mem[0];
+        r2_mem_data = r2_en_i ? mem[r2_addr_i] : mem[0];
 
         // if there's a write in the same cycle to the same address, forward the new data instead of the old data
         r1_data_next = (wen_i && (w_addr == r1_addr_i) && w_addr != 0) ? w_data : r1_mem_data;
