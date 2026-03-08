@@ -204,3 +204,10 @@ inv sim-all
 | `tb_programs`    |    17 | Full programs: sort, search, fibonacci, checksum, etc.    |
 
 **Total: 179 tests**
+
+## Roadmap
+
+- [ ] Multi-level cache hierarchy (L1 I-cache, L1 D-cache, unified L2 cache)
+- [ ] Extended verification via [riscv-arch-test](https://github.com/riscv-non-isa/riscv-arch-test) compliance suite and compiled C programs
+- [ ] Memory-mapped peripheral bus
+- [ ] Multi-functional unit support (superscalar execution)
