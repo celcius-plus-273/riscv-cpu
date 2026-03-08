@@ -1,0 +1,27 @@
+# Simulation Configuration
+SIM_SETUP:
+    SIMULATOR: verilator
+    TOPLEVEL: rv_cpu        # default DUT top-level (also determines filelist name)
+
+# Define simulation environment paths (relative to sim/)
+SIM_ENV:
+    PRJ_DIR: ../..
+    SRC_RTL: ../../src/rtl
+    SRC_VERIF: ../../src/verif
+
+# Build arguments for Verilator
+BUILD_ARGS:
+    - "-sv"                 # SystemVerilog
+    - "--timing"            # enable # delays
+    - "--trace-fst"         # high-performance FST waveforms
+    - "--trace-structs"     # expose SV struct members in waveform
+    - "--Wall"              # strict linting
+    - "-Wno-WIDTHEXPAND"
+    - "-Wno-fatal"          # warnings as warnings, not errors
+    - "-O3"                 # maximum simulation speed
+    - "--threads"
+    - "4"                   # parallel compilation
+
+# Verilog defines passed at compile time
+VERILOG_DEFINES:
+    "DBG": 1

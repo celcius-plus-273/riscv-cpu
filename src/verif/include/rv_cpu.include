@@ -1,0 +1,26 @@
+// RTL file list for rv_cpu cocotb simulation
+// Paths are relative to SRC_RTL (../../rtl from sim/)
+// Order: package first, then leaves, then top-level
+
+// Package (must be compiled first — imported by all pipeline modules)
+rv_cpu_pkg.sv
+
+// Functional units
+f_unit/alu.sv
+
+// Memory modules
+memory/i_reg.sv
+memory/reg_file.sv
+memory/sram_rw_dff.sv
+
+// Pipeline stages
+cpu/control.sv
+cpu/hazard.sv
+cpu/pipe_if.sv
+cpu/pipe_id.sv
+cpu/pipe_ex.sv
+cpu/pipe_mem.sv
+cpu/pipe_wb.sv
+
+// Top level
+rv_cpu.sv
