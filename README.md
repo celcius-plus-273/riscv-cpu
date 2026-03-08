@@ -2,7 +2,7 @@
 
 A 32-bit RISC-V CPU implemented in SystemVerilog, simulated with Verilator and verified with cocotb.
 
-Note: Microarchitecture is based on Harris & Harris DDCA 5-stage In-Order Pipelined RV32I processor with added optimizations
+**Note:** Microarchitecture is based on Harris & Harris DDCA 5-stage In-Order Pipelined RV32I processor ~ with added optimizations :)
 
 ## Motivation
 
@@ -152,6 +152,13 @@ sim/
     sim_build/             # Verilator build output
 ```
 
+## Prerequisites
+
+- Python 3.13
+- Verilator 5.x
+- cocotb 2.x
+- Invoke
+
 ## Verification
 
 ### Infrastructure
@@ -166,6 +173,9 @@ Tests are written in Python using **cocotb** and run on **Verilator**-compiled R
 ### Running Tests
 
 ```bash
+# Go into simulation directory
+cd sim
+
 # Build the Verilator model
 inv build
 
@@ -173,7 +183,7 @@ inv build
 inv sim --testbench tb_r_type
 
 # Run all testbenches
-inv sim_all
+inv sim-all
 ```
 
 ### Testbenches
@@ -194,10 +204,3 @@ inv sim_all
 | `tb_programs`    |    17 | Full programs: sort, search, fibonacci, checksum, etc.    |
 
 **Total: 179 tests**
-
-## Prerequisites
-
-- Python 3.13+
-- Verilator 5.x
-- cocotb 2.x
-- Invoke
