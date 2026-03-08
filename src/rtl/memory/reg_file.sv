@@ -38,6 +38,9 @@ module reg_file
     // use reg array to model a register file of size 32
     reg [WIDTH-1:0] mem [DEPTH];
 
+    logic [WIDTH-1:0] r1_data_next, r2_data_next;
+    logic [WIDTH-1:0] r1_mem_data, r2_mem_data;
+
     /** Write Logic
      *  - Our register file supports writes on the rising edge of the clock
      *  - Reset is asynchronous
@@ -64,9 +67,18 @@ module reg_file
             r2_data_o <= '0;
         end
         else begin
-            r1_data_o <= r1_en_i ? mem[r1_addr_i] : r1_data_o;
-            r2_data_o <= r2_en_i ? mem[r2_addr_i] : r2_data_o;
+            r1_data_o <= r1_data_next;
+            r2_data_o <= r2_data_next;
         end
+    end
+
+    always_comb begin : rd_forward_logic
+        r1_mem_data = r1_en_i ? mem[r1_addr_i] : r1_data_o;
+        r2_mem_data = r2_en_i ? mem[r2_addr_i] : r2_data_o;
+
+        // if there's a write in the same cycle to the same address, forward the new data instead of the old data
+        r1_data_next = (wen_i && (w_addr == r1_addr_i) && w_addr != 0) ? w_data : r1_mem_data;
+        r2_data_next = (wen_i && (w_addr == r2_addr_i) && w_addr != 0) ? w_data : r2_mem_data;
     end
 
 endmodule

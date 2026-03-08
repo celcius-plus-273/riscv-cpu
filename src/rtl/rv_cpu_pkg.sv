@@ -17,8 +17,8 @@ package rv_cpu_pkg;
     //        Global Parameters
     // ============================== //
     parameter REG_FILE_DEPTH    = 32;   // Reg File size (32 registers)
-    parameter I_MEM_DEPTH       = 64;   // I-cache size
-    parameter D_MEM_DEPTH       = 256;  // D-cache size
+    parameter I_MEM_DEPTH       = 4096;   // I-cache size
+    parameter D_MEM_DEPTH       = 4096;  // D-cache size
 
     // derived parameters
     parameter RF_ADDR_WIDTH     = $clog2(REG_FILE_DEPTH);
@@ -99,6 +99,7 @@ package rv_cpu_pkg;
         logic           mem_signed; // signed vs unsinged load
         // jump & brach control signals
         logic           is_branch;
+        logic           branch_sign; // 0 = check for zero eq, otherwise 1
         logic           is_jump;
         logic           is_jalr;
     } ctl_id_s;
@@ -106,7 +107,9 @@ package rv_cpu_pkg;
     typedef struct packed {
         // Signals needed to:
         // - determine RAW hazards
+        logic           r1_en;
         logic [4:0]     rs1_addr;
+        logic           r2_en;
         logic [4:0]     rs2_addr;
     } id_hzd_s;
 
@@ -117,11 +120,56 @@ package rv_cpu_pkg;
     } ex_if_s;
 
     typedef struct packed {
+        // Signals needed to:
+        // - determine RAW hazards
+        //   - ony stall if mem load operation
+        logic           mem_rd_en; // for load hzd detection
+        logic [4:0]     rd_addr;
+
+        // Signals needed to:
+        // - determine forwarding
+        logic           r1_en;
+        logic [4:0]     rs1_addr;
+        logic           r2_en;
+        logic [4:0]     rs2_addr;
+
+        // - determine control hazards (for branches)
+        // logic           is_taken;
+    } ex_hzd_s;
+
+    typedef struct packed {
+        // forward data and controls
+        logic           is_fwd_rs1;
+        logic [31:0]    rs1_data;
+        logic           is_fwd_rs2;
+        logic [31:0]    rs2_data;
+    } fwd_ex_s;
+
+    typedef struct packed {
+        // Signals needed to:
+        // - determine RAW hazards
+        logic           rd_wen;
+        logic [4:0]     rd_addr;
+        logic [31:0]    rd_data;
+
+        logic           mem_rd_en; // for load hzd detection
+    } mem_hzd_s;
+
+    typedef struct packed {
         // writeback
         logic           rd_wen;
         logic [4:0]     rd_addr;
         logic [31:0]    rd_data;
     } wb_id_s;
+
+    typedef struct packed {
+        // Signals needed to:
+        // - determine RAW hazards
+        logic           rd_wen;
+        logic [4:0]     rd_addr;
+        // - forward data
+        logic [31:0]    rd_data;
+    } wb_hzd_s;
 
     // ============================== //
     //        Pipelines (regs)
@@ -136,6 +184,12 @@ package rv_cpu_pkg;
         // pc passthrough for branch target calculation
         logic [31:0]    pc;
         logic [31:0]    pc_p4; // for link rd
+
+        // rs1 and rs2 addr for forwarding and hazard detection
+        logic           r1_en;
+        logic [4:0]     rs1_addr;
+        logic           r2_en;
+        logic [4:0]     rs2_addr;
 
         // ALU control signals and data sources
         logic [31:0]    rs1_data;
@@ -152,6 +206,7 @@ package rv_cpu_pkg;
 
         // jump & brach control signals
         logic           is_branch;
+        logic           branch_sign;
         logic           is_jump;
         logic           is_jalr;    // special case for target addr calc
 

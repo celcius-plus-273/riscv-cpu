@@ -4,7 +4,7 @@ Shared testbench helpers for the rv_cpu cocotb test suite.
 
 Provides:
   - Simulation constants  (CLK_PERIOD_NS, N_NOPS, PIPE_DEPTH)
-  - Instruction encoders  (R-, I-, S-type)
+  - Instruction encoders  (R-, I-, S-, B-, J-type)
   - 32-bit arithmetic     (u32, s32)
   - DUT access helpers    (read_reg, write_reg, load_imem, read_dmem, write_dmem)
   - Simulation drivers    (do_reset, clock_n)
@@ -152,6 +152,89 @@ def SH(rs1: int, rs2: int, imm: int) -> int:
 def SB(rs1: int, rs2: int, imm: int) -> int:
     """SB rs2, imm(rs1)  — store lowest byte"""
     return _s(imm, rs2, rs1, 0b000)
+
+
+# ---------------------------------------------------------------------------
+# B-type instruction encoding  (branches)
+# ---------------------------------------------------------------------------
+_OPCODE_B = 0b1100011  # 7'b1100011  (99)
+
+
+def _b(imm: int, rs2: int, rs1: int, funct3: int) -> int:
+    """Assemble one 32-bit B-type instruction word.
+
+    The 13-bit signed immediate encodes a byte offset (bit 0 is always 0).
+    Bit layout:
+        [31]    = imm[12]
+        [30:25] = imm[10:5]
+        [24:20] = rs2
+        [19:15] = rs1
+        [14:12] = funct3
+        [11:8]  = imm[4:1]
+        [7]     = imm[11]
+        [6:0]   = opcode
+    """
+    imm      = imm & 0x1FFF       # keep 13 bits (handles Python negative ints)
+    imm12    = (imm >> 12) & 0x1
+    imm11    = (imm >> 11) & 0x1
+    imm10_5  = (imm >>  5) & 0x3F
+    imm4_1   = (imm >>  1) & 0xF
+    return (
+        (imm12           << 31) |
+        (imm10_5         << 25) |
+        ((rs2  & 0x1F)   << 20) |
+        ((rs1  & 0x1F)   << 15) |
+        ((funct3 & 0x7)  << 12) |
+        (imm4_1          <<  8) |
+        (imm11           <<  7) |
+        _OPCODE_B
+    )
+
+
+def BEQ (rs1, rs2, imm): return _b(imm, rs2, rs1, 0b000)
+def BNE (rs1, rs2, imm): return _b(imm, rs2, rs1, 0b001)
+def BLT (rs1, rs2, imm): return _b(imm, rs2, rs1, 0b100)
+def BGE (rs1, rs2, imm): return _b(imm, rs2, rs1, 0b101)
+def BLTU(rs1, rs2, imm): return _b(imm, rs2, rs1, 0b110)
+def BGEU(rs1, rs2, imm): return _b(imm, rs2, rs1, 0b111)
+
+
+# ---------------------------------------------------------------------------
+# J-type instruction encoding  (JAL) + JALR
+# ---------------------------------------------------------------------------
+_OPCODE_J    = 0b1101111  # 7'b1101111  (111)
+_OPCODE_JALR = 0b1100111  # 7'b1100111  (103)
+
+
+def _j(imm: int, rd: int) -> int:
+    """Assemble one 32-bit J-type instruction word.
+
+    The 21-bit signed immediate encodes a byte offset (bit 0 is always 0).
+    Bit layout:
+        [31]    = imm[20]
+        [30:21] = imm[10:1]
+        [20]    = imm[11]
+        [19:12] = imm[19:12]
+        [11:7]  = rd
+        [6:0]   = opcode
+    """
+    imm      = imm & 0x1FFFFF      # keep 21 bits
+    imm20    = (imm >> 20) & 0x1
+    imm10_1  = (imm >>  1) & 0x3FF
+    imm11    = (imm >> 11) & 0x1
+    imm19_12 = (imm >> 12) & 0xFF
+    return (
+        (imm20           << 31) |
+        (imm10_1         << 21) |
+        (imm11           << 20) |
+        (imm19_12        << 12) |
+        ((rd   & 0x1F)   <<  7) |
+        _OPCODE_J
+    )
+
+
+def JAL (rd, imm):        return _j(imm, rd)
+def JALR(rd, rs1, imm):   return _i(imm, rs1, 0b000, rd, _OPCODE_JALR)
 
 
 # ---------------------------------------------------------------------------

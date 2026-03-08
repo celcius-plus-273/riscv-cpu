@@ -9,8 +9,10 @@ module pipe_if
 (
     // clk, rstn, en
     input logic     clk_i,
-    input logic     en_i,
     input logic     rstn_i,
+
+    input logic     en_i,   // ~stall
+    input logic     flush_i,   // for control hazard detection
 
     // Execute Stage Interface (wire)
     input ex_if_s   ex_if_i,
@@ -49,14 +51,13 @@ module pipe_if
 
     // output reg pipeline
     always_ff @(posedge clk_i or negedge rstn_i) begin
-        if (!rstn_i) begin
+        if (~rstn_i) begin
             if_id_o.pc    <= '0;
             if_id_o.pc_p4 <= '0;
         end
         else begin
-            // add flush?
-            if_id_o.pc    <= pc_r;
-            if_id_o.pc_p4 <= pc_r + 4;
+            if_id_o.pc    <= en_i ? pc_r : if_id_o.pc;
+            if_id_o.pc_p4 <= en_i ? pc_r + 4 : if_id_o.pc_p4;
         end
     end
 
@@ -73,6 +74,7 @@ module pipe_if
         .clk_i(clk_i),
         .rstn_i(rstn_i),
         .en_i(en_i),    // we will use this for stalling :)
+        .flush_i(flush_i), // for control hazard detection
         .pc_i(pc_r),
         .inst_o(if_id_o.inst) // registered output
     );

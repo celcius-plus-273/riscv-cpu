@@ -15,6 +15,7 @@ memory/sram_rw_dff.sv
 
 // Pipeline stages
 cpu/control.sv
+cpu/hazard.sv
 cpu/pipe_if.sv
 cpu/pipe_id.sv
 cpu/pipe_ex.sv

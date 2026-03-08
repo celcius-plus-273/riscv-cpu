@@ -27,6 +27,9 @@ module pipe_id
     input logic         clk_i,
     input logic         rstn_i,
 
+    // input flush (control hazard detection)
+    input logic         flush_i,
+
     // Control Stage Interfaces (wire)
     input ctl_id_s      ctl_id_i,   // Control to ID Interface
     output id_ctl_s     id_ctl_o,   // ID to Control Interface
@@ -150,6 +153,12 @@ module pipe_id
         .clk_i(clk_i),
         .rstn_i(rstn_i),
 
+        // Edge Case
+        // - there is a scenario where r1 and r2 and enabled and data is read from RF
+        // - however, because all control signals are cleared on a flush, this data is just
+        //   bubbling through the pipeline and will not do anything... it will consume power though
+        // .en_i(~flush_i),
+
         // write port (connected to writeback stage)
         .wen_i(wb_id_i.rd_wen),
         .w_addr(wb_id_i.rd_addr),
@@ -160,33 +169,37 @@ module pipe_id
         // - src addr (and enable) comes from decode
         .r1_en_i(ctl_id_i.r1_en),
         .r1_addr_i(rs1_addr),
-        .r1_data_o(id_ex_o.rs1_data),
+        .r1_data_o(id_ex_o.rs1_data),   // might propagate data even on a flush...
         .r2_en_i(ctl_id_i.r2_en),
         .r2_addr_i(rs2_addr),
-        .r2_data_o(id_ex_o.rs2_data)
+        .r2_data_o(id_ex_o.rs2_data)    // might propagate data even on a flush...
     );
 
     // Decode to EX pipeline register
     always_ff @( posedge clk_i or negedge rstn_i ) begin : output_ff
-        if (!rstn_i) begin
+        if (~rstn_i | flush_i) begin
             id_ex_o.pc          <= '0;
             id_ex_o.pc_p4       <= '0;
             id_ex_o.imm         <= '0;
             id_ex_o.alu_op      <= '0;
             id_ex_o.alu_src     <= '0;
+            id_ex_o.r1_en       <= '0;
+            id_ex_o.r2_en       <= '0;
+            id_ex_o.rs1_addr    <= '0;
+            id_ex_o.rs2_addr    <= '0;
             id_ex_o.mem_rd_en   <= '0;
             id_ex_o.mem_wr_en   <= '0;
             id_ex_o.mem_mask    <= '0;
             id_ex_o.mem_signed  <= '0;
             id_ex_o.is_branch   <= '0;
+            id_ex_o.branch_sign <= '0;
             id_ex_o.is_jump     <= '0;
+            id_ex_o.is_jalr     <= '0;
             id_ex_o.wb_src      <= '0;
             id_ex_o.rd_wen      <= '0;
             id_ex_o.rd_addr     <= '0;
         end
         else begin
-            // add flush?
-
             // decode to execute
             id_ex_o.pc         <= if_id_i.pc;
             id_ex_o.pc_p4      <= if_id_i.pc_p4;
@@ -195,13 +208,20 @@ module pipe_id
             id_ex_o.alu_op      <= ctl_id_i.alu_op;
             id_ex_o.alu_src     <= ctl_id_i.alu_src;
 
+            id_ex_o.r1_en       <= ctl_id_i.r1_en;
+            id_ex_o.r2_en       <= ctl_id_i.r2_en;
+            id_ex_o.rs1_addr    <= rs1_addr;
+            id_ex_o.rs2_addr    <= rs2_addr;
+
             id_ex_o.mem_rd_en   <= ctl_id_i.mem_rd_en;
             id_ex_o.mem_wr_en   <= ctl_id_i.mem_wr_en;
             id_ex_o.mem_mask    <= ctl_id_i.mem_mask;
             id_ex_o.mem_signed  <= ctl_id_i.mem_signed;
 
             id_ex_o.is_branch   <= ctl_id_i.is_branch;
+            id_ex_o.branch_sign <= ctl_id_i.branch_sign;
             id_ex_o.is_jump     <= ctl_id_i.is_jump;
+            id_ex_o.is_jalr     <= ctl_id_i.is_jalr;
             id_ex_o.wb_src      <= ctl_id_i.wb_src;
             id_ex_o.rd_wen      <= ctl_id_i.rd_wen;
             id_ex_o.rd_addr     <= rd_addr;
@@ -220,6 +240,8 @@ module pipe_id
     assign id_ctl_o.funct7 = funct7;
 
     // decode to hazard detection
+    assign id_hzd_o.r1_en    = ctl_id_i.r1_en;
+    assign id_hzd_o.r2_en    = ctl_id_i.r2_en;
     assign id_hzd_o.rs1_addr = rs1_addr;
     assign id_hzd_o.rs2_addr = rs2_addr;
 

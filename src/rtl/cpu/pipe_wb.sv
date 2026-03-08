@@ -3,13 +3,16 @@
 // ======================== //
 import rv_cpu_pkg::mem_wb_s;
 import rv_cpu_pkg::wb_id_s;
-// import rv_cpu_pkg::*;
+import rv_cpu_pkg::wb_hzd_s;
 
 module pipe_wb
 (
     // clk, rst
     input logic     clk_i,
     input logic     rstn_i, // not needed hm
+
+    // Hazard/Fwd Interfaces (wire)
+    output wb_hzd_s wb_hzd_o,
 
     // Memory to Writeback pipeline register (reg)
     input mem_wb_s mem_wb_i,
@@ -68,5 +71,9 @@ module pipe_wb
     assign mem_data         = mem_wb_i.mem_data;    // input
     assign wb_id_o.rd_wen   = mem_wb_i.rd_wen;      // outputs
     assign wb_id_o.rd_addr  = mem_wb_i.rd_addr;
+
+    assign wb_hzd_o.rd_wen   = mem_wb_i.rd_wen;      // for hazard detection
+    assign wb_hzd_o.rd_addr  = mem_wb_i.rd_addr;
+    assign wb_hzd_o.rd_data  = wb_id_o.rd_data;      // the selected data (based on wb_src)
 
 endmodule

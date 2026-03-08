@@ -49,6 +49,7 @@ module control
 
     // jump & branch control signals (wire)
     logic           is_branch;
+    logic           branch_sign;
     logic           is_jump;
     logic           is_jalr;
 
@@ -124,6 +125,7 @@ module control
         mem_wr_en   = 1'b0;     // default to no memory write
         mem_signed  = 1'b0;     // default to unsigned load
         mem_mask    = 4'b0000;  // default to no bytes enabled for memory access
+        branch_sign = 1'b0;     // default to check for zero eq
         is_branch   = 1'b0;     // default to no branch
         is_jump     = 1'b0;     // default to no jump
         is_jalr     = 1'b0;     // default to no jalr (for special target address calculation)
@@ -240,12 +242,27 @@ module control
 
                 // branching ALU operations
                 case (funct3)
-                    3'b000: alu_op = ALU_SUB; // beq uses sub for comparison
-                    3'b001: alu_op = ALU_SUB; // bne uses sub for comparison
-                    3'b100: alu_op = ALU_SLT; // blt uses slt for comparison
-                    3'b101: alu_op = ALU_SLT; // bge uses slt for comparison (with operands reversed in execute)
-                    3'b110: alu_op = ALU_SLTU; // bltu uses sltu for comparison
-                    3'b111: alu_op = ALU_SLTU; // bgeu uses sltu for comparison (with operands reversed in execute)
+                    3'b000: begin
+                        alu_op = ALU_SUB; // beq uses sub for comparison
+                    end
+                    3'b001: begin
+                        alu_op = ALU_SUB; // bne uses sub for comparison
+                        branch_sign = 1'b1; // check for non-zero for bne
+                    end
+                    3'b100: begin
+                        alu_op = ALU_SLT; // blt uses slt for comparison
+                        branch_sign = 1'b1; // check for rs1 < rs2 for blt
+                    end
+                    3'b101: begin
+                        alu_op = ALU_SLT; // bge uses slt for comparison (with operands reversed in execute)
+                    end
+                    3'b110: begin
+                        alu_op = ALU_SLTU; // bltu uses sltu for comparison
+                        branch_sign = 1'b1; // check for rs1 < rs2 for bltu
+                    end
+                    3'b111: begin
+                        alu_op = ALU_SLTU; // bgeu uses sltu for comparison (with operands reversed in execute)
+                    end
                     default: alu_op = ALU_INVALID;
                 endcase
             end
@@ -307,6 +324,7 @@ module control
     assign ctl_id_o.mem_mask    = mem_mask;
     assign ctl_id_o.mem_signed  = mem_signed;
     assign ctl_id_o.is_branch   = is_branch;
+    assign ctl_id_o.branch_sign = branch_sign;
     assign ctl_id_o.is_jump     = is_jump;
     assign ctl_id_o.is_jalr     = is_jalr;
     assign ctl_id_o.alu_src     = alu_src;
