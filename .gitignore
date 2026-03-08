@@ -1,6 +1,7 @@
 # ignore the simulation build directory
 sim/behav
 sim/rv_cpu
+__pycache__
 
 # ignore the vivado project
 vivado/

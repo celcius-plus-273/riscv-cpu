@@ -4,7 +4,7 @@ Shared testbench helpers for the rv_cpu cocotb test suite.
 
 Provides:
   - Simulation constants  (CLK_PERIOD_NS, N_NOPS, PIPE_DEPTH)
-  - Instruction encoders  (R-, I-, S-, B-, J-type)
+  - Instruction encoders  (R-, I-, S-, B-, J-, U-type)
   - 32-bit arithmetic     (u32, s32)
   - DUT access helpers    (read_reg, write_reg, load_imem, read_dmem, write_dmem)
   - Simulation drivers    (do_reset, clock_n)
@@ -95,9 +95,46 @@ def _i(imm12: int, rs1: int, funct3: int, rd: int, opcode: int) -> int:
     )
 
 
-def ADDI(rd: int, rs1: int, imm: int) -> int:
-    """ADDI rd, rs1, imm  — rd = rs1 + sign_extend(imm)"""
+def ADDI (rd: int, rs1: int, imm: int) -> int:
+    """ADDI  rd, rs1, imm  — rd = rs1 + sign_extend(imm)"""
     return _i(imm, rs1, 0b000, rd, _OPCODE_I_ARITH)
+
+def SLTI (rd: int, rs1: int, imm: int) -> int:
+    """SLTI  rd, rs1, imm  — rd = (signed(rs1) < signed(sign_extend(imm))) ? 1 : 0"""
+    return _i(imm, rs1, 0b010, rd, _OPCODE_I_ARITH)
+
+def SLTIU(rd: int, rs1: int, imm: int) -> int:
+    """SLTIU rd, rs1, imm  — rd = (unsigned(rs1) < unsigned(sign_extend(imm))) ? 1 : 0"""
+    return _i(imm, rs1, 0b011, rd, _OPCODE_I_ARITH)
+
+def XORI (rd: int, rs1: int, imm: int) -> int:
+    """XORI  rd, rs1, imm  — rd = rs1 ^ sign_extend(imm)"""
+    return _i(imm, rs1, 0b100, rd, _OPCODE_I_ARITH)
+
+def ORI  (rd: int, rs1: int, imm: int) -> int:
+    """ORI   rd, rs1, imm  — rd = rs1 | sign_extend(imm)"""
+    return _i(imm, rs1, 0b110, rd, _OPCODE_I_ARITH)
+
+def ANDI (rd: int, rs1: int, imm: int) -> int:
+    """ANDI  rd, rs1, imm  — rd = rs1 & sign_extend(imm)"""
+    return _i(imm, rs1, 0b111, rd, _OPCODE_I_ARITH)
+
+def SLLI (rd: int, rs1: int, shamt: int) -> int:
+    """SLLI  rd, rs1, shamt — rd = rs1 << shamt  (logical; shamt in [0, 31])"""
+    return _i(shamt & 0x1F, rs1, 0b001, rd, _OPCODE_I_ARITH)
+
+def SRLI (rd: int, rs1: int, shamt: int) -> int:
+    """SRLI  rd, rs1, shamt — rd = rs1 >> shamt  (logical zero-fill; shamt in [0, 31])"""
+    return _i(shamt & 0x1F, rs1, 0b101, rd, _OPCODE_I_ARITH)
+
+def SRAI (rd: int, rs1: int, shamt: int) -> int:
+    """SRAI  rd, rs1, shamt — rd = rs1 >> shamt  (arithmetic sign-fill; shamt in [0, 31])
+
+    funct7 bit 5 (instruction bit 30) is set to 1 to distinguish from SRLI.
+    In the 12-bit immediate field: bit 10 = 1 → 0x400 | shamt.
+    """
+    return _i(0x400 | (shamt & 0x1F), rs1, 0b101, rd, _OPCODE_I_ARITH)
+
 
 def LW (rd: int, rs1: int, imm: int) -> int:
     """LW  rd, imm(rs1)  — 32-bit word load"""
@@ -235,6 +272,31 @@ def _j(imm: int, rd: int) -> int:
 
 def JAL (rd, imm):        return _j(imm, rd)
 def JALR(rd, rs1, imm):   return _i(imm, rs1, 0b000, rd, _OPCODE_JALR)
+
+
+# ---------------------------------------------------------------------------
+# U-type instruction encoding  (LUI, AUIPC)
+# ---------------------------------------------------------------------------
+_OPCODE_LUI   = 0b0110111  # 7'b0110111  (55)
+_OPCODE_AUIPC = 0b0010111  # 7'b0010111  (23)
+
+
+def LUI(rd: int, imm20: int) -> int:
+    """LUI rd, imm20  — rd = imm20 << 12  (lower 12 bits zeroed).
+
+    imm20 is the unsigned 20-bit immediate (the value placed in rd[31:12]).
+    Example: LUI(1, 0xABCDE) sets x1 = 0xABCDE000.
+    """
+    return ((imm20 & 0xFFFFF) << 12) | ((rd & 0x1F) << 7) | _OPCODE_LUI
+
+
+def AUIPC(rd: int, imm20: int) -> int:
+    """AUIPC rd, imm20  — rd = PC + (imm20 << 12).
+
+    imm20 is the unsigned 20-bit immediate.
+    Example: AUIPC(1, 1) at PC=0 sets x1 = 0 + 0x1000 = 0x1000.
+    """
+    return ((imm20 & 0xFFFFF) << 12) | ((rd & 0x1F) << 7) | _OPCODE_AUIPC
 
 
 # ---------------------------------------------------------------------------

@@ -63,7 +63,7 @@ module pipe_wb
             2'b00: wb_id_o.rd_data = mem_wb_i.alu_result;
             2'b01: wb_id_o.rd_data = mem_data_ext;
             2'b10: wb_id_o.rd_data = mem_wb_i.pc_p4;
-            2'b11: wb_id_o.rd_data = mem_wb_i.alu_result; // for auipc, write back the target addr (pc + imm)
+            2'b11: wb_id_o.rd_data = mem_wb_i.addr_result; // for auipc, write back the target addr (pc + imm)
             default: wb_id_o.rd_data = 32'b0;
         endcase
     end

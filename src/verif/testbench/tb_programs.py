@@ -28,7 +28,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 from tb_helpers import (
     CLK_PERIOD_NS, PIPE_DEPTH,
-    NOP, ADD, SUB, XOR, SRL,
+    NOP, ADD, SUB, AND, XOR, SRL,
     ADDI, LW, SW,
     BEQ, BNE, BGE,
     u32,
@@ -434,7 +434,7 @@ async def test_popcount(dut):
         load_imem(dut, prog)
         await do_reset(dut)
         write_reg(dut, 1, word)
-        await clock_n(dut, 200)   # worst case: 32 iterations
+        await clock_n(dut, 350)   # worst case: 32 iters × ~8 cycles/iter + overhead
 
         got = read_reg(dut, 3)
         assert got == expected_count, (
