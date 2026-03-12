@@ -27,8 +27,10 @@ module pipe_id
     input logic         clk_i,
     input logic         rstn_i,
 
-    // input flush (control hazard detection)
+    // input from hazard detection
     input logic         flush_i,
+    input logic         stall_i,
+    input logic         bubble_i,
 
     // Control Stage Interfaces (wire)
     input ctl_id_s      ctl_id_i,   // Control to ID Interface
@@ -158,6 +160,7 @@ module pipe_id
         // - however, because all control signals are cleared on a flush, this data is just
         //   bubbling through the pipeline and will not do anything... it will consume power though
         // .en_i(~flush_i),
+        .stall_i(stall_i),  // stall the register file read when there is a data hazard and we need to stall the pipeline
 
         // write port (connected to writeback stage)
         .wen_i(wb_id_i.rd_wen),
@@ -177,7 +180,7 @@ module pipe_id
 
     // Decode to EX pipeline register
     always_ff @( posedge clk_i or negedge rstn_i ) begin : output_ff
-        if (~rstn_i | flush_i) begin
+        if (~rstn_i | (flush_i | bubble_i)) begin
             id_ex_o.pc          <= '0;
             id_ex_o.pc_p4       <= '0;
             id_ex_o.imm         <= '0;
@@ -201,30 +204,32 @@ module pipe_id
         end
         else begin
             // decode to execute
-            id_ex_o.pc         <= if_id_i.pc;
-            id_ex_o.pc_p4      <= if_id_i.pc_p4;
+            if (~stall_i) begin
+                id_ex_o.pc         <= if_id_i.pc;
+                id_ex_o.pc_p4      <= if_id_i.pc_p4;
 
-            id_ex_o.imm         <= imm_next;
-            id_ex_o.alu_op      <= ctl_id_i.alu_op;
-            id_ex_o.alu_src     <= ctl_id_i.alu_src;
+                id_ex_o.imm         <= imm_next;
+                id_ex_o.alu_op      <= ctl_id_i.alu_op;
+                id_ex_o.alu_src     <= ctl_id_i.alu_src;
 
-            id_ex_o.r1_en       <= ctl_id_i.r1_en;
-            id_ex_o.r2_en       <= ctl_id_i.r2_en;
-            id_ex_o.rs1_addr    <= rs1_addr;
-            id_ex_o.rs2_addr    <= rs2_addr;
+                id_ex_o.r1_en       <= ctl_id_i.r1_en;
+                id_ex_o.r2_en       <= ctl_id_i.r2_en;
+                id_ex_o.rs1_addr    <= rs1_addr;
+                id_ex_o.rs2_addr    <= rs2_addr;
 
-            id_ex_o.mem_rd_en   <= ctl_id_i.mem_rd_en;
-            id_ex_o.mem_wr_en   <= ctl_id_i.mem_wr_en;
-            id_ex_o.mem_mask    <= ctl_id_i.mem_mask;
-            id_ex_o.mem_signed  <= ctl_id_i.mem_signed;
+                id_ex_o.mem_rd_en   <= ctl_id_i.mem_rd_en;
+                id_ex_o.mem_wr_en   <= ctl_id_i.mem_wr_en;
+                id_ex_o.mem_mask    <= ctl_id_i.mem_mask;
+                id_ex_o.mem_signed  <= ctl_id_i.mem_signed;
 
-            id_ex_o.is_branch   <= ctl_id_i.is_branch;
-            id_ex_o.branch_sign <= ctl_id_i.branch_sign;
-            id_ex_o.is_jump     <= ctl_id_i.is_jump;
-            id_ex_o.is_jalr     <= ctl_id_i.is_jalr;
-            id_ex_o.wb_src      <= ctl_id_i.wb_src;
-            id_ex_o.rd_wen      <= ctl_id_i.rd_wen;
-            id_ex_o.rd_addr     <= rd_addr;
+                id_ex_o.is_branch   <= ctl_id_i.is_branch;
+                id_ex_o.branch_sign <= ctl_id_i.branch_sign;
+                id_ex_o.is_jump     <= ctl_id_i.is_jump;
+                id_ex_o.is_jalr     <= ctl_id_i.is_jalr;
+                id_ex_o.wb_src      <= ctl_id_i.wb_src;
+                id_ex_o.rd_wen      <= ctl_id_i.rd_wen;
+                id_ex_o.rd_addr     <= rd_addr;
+            end
         end
     end
 

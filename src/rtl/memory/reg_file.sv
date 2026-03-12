@@ -21,6 +21,9 @@ module reg_file
     input  logic        clk_i,
     input  logic        rstn_i,
 
+    // stall
+    input logic                 stall_i,    // stall signal from hazard unit for data hazards
+
     // Single Write Port
     input  logic                wen_i,
     input  logic [DEPTH-1:0]    w_addr,
@@ -67,8 +70,8 @@ module reg_file
             r2_data_o <= '0;
         end
         else begin
-            r1_data_o <= r1_data_next;
-            r2_data_o <= r2_data_next;
+            r1_data_o <= stall_i ? r1_data_o : r1_data_next;
+            r2_data_o <= stall_i ? r2_data_o : r2_data_next;
         end
     end
 

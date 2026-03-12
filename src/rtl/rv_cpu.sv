@@ -33,8 +33,8 @@ module rv_cpu
     // ============================== //
     //     Global Control Signals
     // ============================== //
-    logic        stall_w;
-    logic        flush_w;
+    // logic        stall_w;
+    // logic        flush_w;
 
     // ============================== //
     //    Module Interfaces (wire)
@@ -49,6 +49,8 @@ module rv_cpu
     wb_id_s     wb_id_w;     // WB to ID (for writeback data forwarding)
     wb_hzd_s    wb_hzd_w;    // WB to Hazard Detection
 
+    hzd_pipe_s   hzd_pipe_w;   // Hazard Detection to Pipeline for stall/flush signals
+
     // ============================== //
     //        Pipeline Regs (reg)
     // ============================== //
@@ -56,6 +58,11 @@ module rv_cpu
     id_ex_s     id_ex_w;    // ID to EX pipeline register
     ex_mem_s    ex_mem_w;   // EX to MEM pipeline register
     mem_wb_s    mem_wb_w;   // MEM to WB pipeline register
+
+    // ============================== //
+    //           AXI Buses
+    // ============================== //
+    axi4_lite_if axi4_lite_bus (.*);
 
     // ============================== //
     //            Stages
@@ -66,8 +73,8 @@ module rv_cpu
     ) fetch_stage (
         .clk_i(clk_i),
         .rstn_i(rstn_i),
-        .en_i(~stall_w & riscv_en_i),   // enable is inverse of stall
-        .flush_i(flush_w),              // flush signal for control hazards
+        .en_i(~hzd_pipe_w.if_stall & riscv_en_i),   // enable is inverse of stall
+        .flush_i(hzd_pipe_w.flush),              // flush signal for control hazards
         .ex_if_i(ex_if_w),              // for branch target update
         .if_id_o(if_id_w)               // output to IF/ID pipeline register
     );
@@ -78,7 +85,9 @@ module rv_cpu
     ) decode_stage (
         .clk_i(clk_i),
         .rstn_i(rstn_i),
-        .flush_i(flush_w | stall_w),              // flush signal for control hazards
+        .flush_i(hzd_pipe_w.flush),     // flush signal for control hazards
+        .stall_i(hzd_pipe_w.id_stall),  // stall signal for data hazards
+        .bubble_i(hzd_pipe_w.id_bubble),// bubble signal for load-use hazards
         .ctl_id_i(ctl_id_w),            // control signals from control stage
         .id_ctl_o(id_ctl_w),            // opcode output to control stage
         .id_hzd_o(id_hzd_w),            // hazard signals to hazard detection
@@ -103,14 +112,14 @@ module rv_cpu
         .mem_hzd_i(mem_hzd_w), // input from MEM stage for hazard detection
         .wb_hzd_i(wb_hzd_w),   // input from WB stage for hazard detection
         .fwd_ex_o(fwd_ex_w),   // forwarding signals to EX stage
-        .stall_o(stall_w),     // stall signal output
-        .flush_o(flush_w)      // flush signal output for control hazards
+        .hzd_pipe_o(hzd_pipe_w) // hazard signals to pipeline for stall/flush
     );
 
     // Execute Stage
     pipe_ex execute_stage (
         .clk_i(clk_i),
         .rstn_i(rstn_i),
+        .stall_i(hzd_pipe_w.ex_stall),  // stall signal for data hazards
         .ex_hzd_o(ex_hzd_w),    // output to hazard detection for hazard signals
         .fwd_ex_i(fwd_ex_w),    // input from hazard detection for forwarding
         .ex_if_o(ex_if_w),     // output to EX/IF for branch target
@@ -124,6 +133,8 @@ module rv_cpu
     ) memory_stage (
         .clk_i(clk_i),
         .rstn_i(rstn_i),
+        .bubble_i(hzd_pipe_w.mem_bubble),
+        .axl_if(axi4_lite_bus.master),   // AXI4-Lite interface to data memory
         .mem_hzd_o(mem_hzd_w),   // output to hazard detection for hazard signals
         .ex_mem_i(ex_mem_w),   // input from EX/MEM pipeline register
         .mem_wb_o(mem_wb_w)    // output to MEM/WB pipeline register
@@ -136,6 +147,19 @@ module rv_cpu
         .wb_hzd_o(wb_hzd_w),    // output to hazard detection for hazard signals
         .mem_wb_i(mem_wb_w),   // input from MEM/WB pipeline register
         .wb_id_o(wb_id_w)      // output to WB/ID pipeline register
+    );
+
+    // ============================== //
+    //        Memory Instances
+    // ============================== //
+    // D Cache
+    d_cache #(
+        .D_CACHE_DEPTH(D_MEM_DEPTH),
+        .D_CACHE_AX_DELAY(D_MEM_AX_DELAY) // 2 cycle delay for AXI transactions
+    ) d_cache_inst (
+        .clk_i(clk_i),
+        .rstn_i(rstn_i),
+        .axl_if(axi4_lite_bus.slave)
     );
 
 endmodule

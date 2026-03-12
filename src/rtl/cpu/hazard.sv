@@ -3,6 +3,7 @@ import rv_cpu_pkg::ex_hzd_s;
 import rv_cpu_pkg::mem_hzd_s;
 import rv_cpu_pkg::wb_hzd_s;
 import rv_cpu_pkg::fwd_ex_s;
+import rv_cpu_pkg::hzd_pipe_s;
 
 module hazard
 #(
@@ -24,8 +25,7 @@ module hazard
     output fwd_ex_s fwd_ex_o,
 
     // Hazard Detection to Control Interface
-    output logic stall_o,   // stalls instruction fetch (this will hold the last decoded inst)
-    output logic flush_o    // flushes for mispredicted branches (crreuntly predicts always NT)
+    hzd_pipe_s hzd_pipe_o
 );
     // ======================== //
     //       HAZARD UNIT
@@ -44,7 +44,9 @@ module hazard
     logic rs1_eq_rd_ex, rs1_eq_rd_mem, rs1_eq_rd_wb;
     logic rs2_eq_rd_ex, rs2_eq_rd_mem, rs2_eq_rd_wb;
     logic is_valid_ex, is_valid_mem, is_valid_wb;
-    logic is_hazard_ex, is_hazard_mem, is_hazard_wb;
+
+    // hazard detections
+    logic raw_ex_load;   // (RAW hazard in EX stage due to load)
 
     // intermediate forwarding signals (wire)
     logic is_fwd_mem, is_fwd_wb;
@@ -61,7 +63,7 @@ module hazard
 
         rs1_eq_rd_ex = (ex_hzd_i.rd_addr == id_hzd_i.rs1_addr) & id_hzd_i.r1_en;
         rs2_eq_rd_ex = (ex_hzd_i.rd_addr == id_hzd_i.rs2_addr) & id_hzd_i.r2_en;
-        is_hazard_ex = (is_valid_ex & (rs1_eq_rd_ex | rs2_eq_rd_ex));
+        raw_ex_load = (is_valid_ex & (rs1_eq_rd_ex | rs2_eq_rd_ex));
 
         // If functional units are not ready you also need to stall
         // - Our ALU is single cycle so we never stall for computations
@@ -97,8 +99,11 @@ module hazard
     end
 
     // Generate stall and flush signals
-    assign stall_o = is_hazard_ex;
-    assign flush_o = is_taken;
+    assign hzd_pipe_o.if_stall = mem_hzd_i.mem_busy | raw_ex_load;
+    assign hzd_pipe_o.id_stall = mem_hzd_i.mem_busy;
+    assign hzd_pipe_o.id_bubble = raw_ex_load & ~mem_hzd_i.mem_busy;
+    assign hzd_pipe_o.ex_stall = mem_hzd_i.mem_busy;
+    assign hzd_pipe_o.flush = is_taken;
 
     always_comb begin : fwd_out_logic
         // Prioritize mem stage forwarding (newer data)

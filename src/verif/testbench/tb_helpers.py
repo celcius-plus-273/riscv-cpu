@@ -365,12 +365,16 @@ def read_dmem(dut, word_addr: int) -> int:
         word_addr 0  <->  byte address 0x00
         word_addr 1  <->  byte address 0x04, etc.
     """
-    return int(dut.memory_stage.sram_inst.mem_array[word_addr].value)
+    # mem_handle = dut.memory_stage.sram_inst.mem_array
+    mem_handle = dut.d_cache_inst.sram_inst.mem_array
+    return int(mem_handle[word_addr].value)
 
 
 def write_dmem(dut, word_addr: int, value: int) -> None:
     """Directly initialise a data-memory word, bypassing the pipeline."""
-    dut.memory_stage.sram_inst.mem_array[word_addr].value = u32(value)
+    # mem_handle = dut.memory_stage.sram_inst.mem_array
+    mem_handle = dut.d_cache_inst.sram_inst.mem_array
+    mem_handle[word_addr].value = u32(value)
 
 
 # ---------------------------------------------------------------------------

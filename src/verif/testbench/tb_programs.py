@@ -386,7 +386,7 @@ async def test_xor_checksum(dut):
 
     await _run(dut, prog,
                dmem_init={i: v for i, v in enumerate(data)},
-               n_cycles=100,
+               n_cycles=300,
                exp_regs={3: expected_cksum},
                exp_dmem={8: expected_cksum})
 

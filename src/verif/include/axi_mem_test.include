@@ -1,0 +1,6 @@
+rv_cpu_pkg.sv
+axi/axi4_lite_if.sv
+memory/sram_rw_dff.sv
+cpu/pipe_mem.sv
+memory/d_cache.sv
+test/axi_mem_test.sv

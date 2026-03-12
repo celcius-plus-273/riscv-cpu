@@ -13,6 +13,8 @@ module pipe_ex
     input logic     clk_i,
     input logic     rstn_i,
 
+    input logic     stall_i,    // stall signal from hazard unit for data hazards
+
     // Execute Stage Interfaces (Wires)
     input  fwd_ex_s fwd_ex_i,      // Forwarding from hazard detection
     output ex_if_s  ex_if_o,       // EX to IF interface for branch target update
@@ -86,19 +88,21 @@ module pipe_ex
             ex_mem_o.rd_wen         <= '0;
             ex_mem_o.rd_addr        <= '0;
         end else begin
-            ex_mem_o.pc_p4          <= id_ex_i.pc_p4;
-            ex_mem_o.alu_result     <= alu_result;
-            ex_mem_o.addr_result    <= addr_result;
+            if (~stall_i) begin
+                ex_mem_o.pc_p4          <= id_ex_i.pc_p4;
+                ex_mem_o.alu_result     <= alu_result;
+                ex_mem_o.addr_result    <= addr_result;
 
-            ex_mem_o.mem_rd_en      <= id_ex_i.mem_rd_en;
-            ex_mem_o.mem_wr_en      <= id_ex_i.mem_wr_en;
-            ex_mem_o.mem_mask       <= id_ex_i.mem_mask;
-            ex_mem_o.mem_signed     <= id_ex_i.mem_signed;
-            ex_mem_o.mem_wr_data    <= rs2_src; // need to consider forwarded rs2!
+                ex_mem_o.mem_rd_en      <= id_ex_i.mem_rd_en;
+                ex_mem_o.mem_wr_en      <= id_ex_i.mem_wr_en;
+                ex_mem_o.mem_mask       <= id_ex_i.mem_mask;
+                ex_mem_o.mem_signed     <= id_ex_i.mem_signed;
+                ex_mem_o.mem_wr_data    <= rs2_src; // need to consider forwarded rs2!
 
-            ex_mem_o.wb_src         <= id_ex_i.wb_src;
-            ex_mem_o.rd_wen         <= id_ex_i.rd_wen;
-            ex_mem_o.rd_addr        <= id_ex_i.rd_addr;
+                ex_mem_o.wb_src         <= id_ex_i.wb_src;
+                ex_mem_o.rd_wen         <= id_ex_i.rd_wen;
+                ex_mem_o.rd_addr        <= id_ex_i.rd_addr;
+            end
         end
     end
 

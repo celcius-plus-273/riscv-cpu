@@ -19,6 +19,7 @@ package rv_cpu_pkg;
     parameter REG_FILE_DEPTH    = 32;   // Reg File size (32 registers)
     parameter I_MEM_DEPTH       = 4096;   // I-cache size
     parameter D_MEM_DEPTH       = 4096;  // D-cache size
+    parameter D_MEM_AX_DELAY    = 2;     // D-cache access delay
 
     // derived parameters
     parameter RF_ADDR_WIDTH     = $clog2(REG_FILE_DEPTH);
@@ -153,6 +154,7 @@ package rv_cpu_pkg;
         logic [31:0]    rd_data;
 
         logic           mem_rd_en; // for load hzd detection
+        logic           mem_busy;
     } mem_hzd_s;
 
     typedef struct packed {
@@ -170,6 +172,20 @@ package rv_cpu_pkg;
         // - forward data
         logic [31:0]    rd_data;
     } wb_hzd_s;
+
+    typedef struct packed {
+        // bubble, stall, and flush signals
+        logic flush; // global flush signal
+        // IF
+        logic if_stall;
+        // ID
+        logic id_bubble;
+        logic id_stall;
+        // EX
+        logic ex_stall;
+        // MEM
+        logic mem_bubble;
+    } hzd_pipe_s;
 
     // ============================== //
     //        Pipelines (regs)
