@@ -2,7 +2,7 @@
 
 A 32-bit RISC-V CPU implemented in SystemVerilog, simulated with Verilator and verified with cocotb.
 
-**Notes:** 
+**Notes:**
 - Microarchitecture is based on Harris & Harris DDCA 5-stage In-Order Pipelined RV32I processor ~ with added optimizations :)
 - Custom SystemVerilog design (no templates / no agents)
 - Verification flow was accelerated with the help of an Agent
@@ -214,3 +214,9 @@ inv sim-all
 - [ ] Extended verification via [riscv-arch-test](https://github.com/riscv-non-isa/riscv-arch-test) compliance suite and compiled C programs
 - [ ] Memory-mapped peripheral bus
 - [ ] Multi-functional unit support (superscalar execution)
+
+## TODO
+- [x] AXI4 Lite bus for D-Cache
+- [ ] Implement D-Cache (single level L1)
+- [ ] Implement I-Cache
+- [ ] Pipelined multiplier and divider (RV32 M Extension)
