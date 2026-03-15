@@ -99,10 +99,10 @@ module hazard
     end
 
     // Generate stall and flush signals
-    assign hzd_pipe_o.if_stall = mem_hzd_i.mem_busy | raw_ex_load;
-    assign hzd_pipe_o.id_stall = mem_hzd_i.mem_busy;
-    assign hzd_pipe_o.id_bubble = raw_ex_load & ~mem_hzd_i.mem_busy;
-    assign hzd_pipe_o.ex_stall = mem_hzd_i.mem_busy;
+    assign hzd_pipe_o.if_stall = mem_hzd_i.stall | raw_ex_load;
+    assign hzd_pipe_o.id_stall = mem_hzd_i.stall;
+    assign hzd_pipe_o.id_bubble = raw_ex_load & ~mem_hzd_i.stall;
+    assign hzd_pipe_o.ex_stall = mem_hzd_i.stall;
     assign hzd_pipe_o.flush = is_taken;
 
     always_comb begin : fwd_out_logic

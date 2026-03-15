@@ -1,7 +1,7 @@
 module d_cache
 #(
     parameter D_CACHE_DEPTH     = 256,  // D-cache size
-    parameter D_CACHE_AX_DELAY  = 2,
+    parameter D_CACHE_AX_DELAY  = 1,    // D-cache access delay (in cycles)
 
     // derived parameters
     localparam D_CACHE_ADDR_WIDTH   = $clog2(D_CACHE_DEPTH),
@@ -10,26 +10,27 @@ module d_cache
     // clk, rst
     input logic         clk_i,
     input logic         rstn_i,
-    axi4_lite_if.slave  axl_if // AXI4-Lite interface to data memory (for loads/stores)
+    mem_dcache_if.slave dcache_if,  // interface to pipeline memory stage
+    axi4_lite_if.master axl_if      // AXI4-Lite interface to memory bus
 );
 
-    // Internal State Encoding
     typedef enum logic [1:0] {
         IDLE = 2'b00,
-        R_RESP = 2'b01,
-        W_RESP = 2'b10,
+        WAIT = 2'b01,
         STATEX = 2'bxx
-    } d_cache_state_e;
+    } cache_state_e;
 
     // ============================== //
     //         Variables
     // ============================== //
     // FSM state register
-    d_cache_state_e state_r, next_state;
+    cache_state_e state_r, next_state;
 
-    // Simulated delay
-    logic [DELAY_BITS-1:0] delay_cnt_r, delay_cnt_next;
-    logic finish_delay;
+    // Counter for simulating access delay
+    logic [DELAY_BITS:0] delay_cnt_r, delay_cnt_next;
+
+    // fake delay finish signal
+    logic finish_ax;
 
     // Internal memory signals
     logic                           cache_cenb;
@@ -39,90 +40,50 @@ module d_cache
     logic [3:0]                     cache_wstrb;
     logic [31:0]                    cache_rdata;
 
-    // state ff
+    // always ff
     always_ff @(posedge clk_i or negedge rstn_i) begin
-        if (!rstn_i) begin
-            state_r     <= IDLE;
+        if (~rstn_i) begin
+            state_r <= IDLE;
             delay_cnt_r <= '0;
-        end
-        else begin
-            state_r     <= next_state;
+        end else begin
+            state_r <= next_state;
             delay_cnt_r <= delay_cnt_next;
         end
     end
 
-    // next state logic
+    // comb logic for next state and delay counter
     always_comb begin
         // default values
         next_state = state_r;
-        delay_cnt_next = '0;
+        delay_cnt_next = delay_cnt_r;
+
         case (state_r)
             IDLE: begin
-                if (axl_if.ar_vld) next_state = R_RESP; // if read address valid, go to read response state
-                if (axl_if.aw_vld && axl_if.w_vld) next_state = W_RESP; // if write address and data valid, go to write response state
+                // Delay counter is not used if AX delay is 1 cycle
+                if (D_CACHE_AX_DELAY == 1) begin
+                    next_state = IDLE;
+                end else begin
+                    next_state = cache_cenb ? IDLE : WAIT;
+                end
             end
-            R_RESP: begin
-                delay_cnt_next = delay_cnt_r + 1;
-                next_state = (finish_delay & axl_if.r_rdy) ? IDLE : R_RESP; // stay in R_RESP until master is ready
+            WAIT: begin
+                delay_cnt_next = delay_cnt_r + 1'b1;
+                next_state = (delay_cnt_next == (D_CACHE_AX_DELAY - 1)) ? IDLE : WAIT;
             end
-            W_RESP: begin
-                delay_cnt_next = delay_cnt_r + 1;
-                next_state = (finish_delay & axl_if.b_rdy) ? IDLE : W_RESP; // stay in W_RESP until master is ready
-            end
-            default: begin
-                next_state = STATEX;
-            end
+            default: next_state = STATEX;
         endcase
     end
 
-    // memory control logic
-    always_comb begin
-        // default control signals
-        cache_cenb = 1'b1; // disable cache by default
-        cache_wenb = 1'b0; // default to read
-        cache_addr = '0;
-        case (next_state)
-            IDLE: begin
-                // set to default
-            end
-            R_RESP: begin
-                cache_cenb = 1'b0; // enable cache
-                cache_wenb = 1'b1; // read operation
-                cache_addr = axl_if.ar_addr[D_CACHE_ADDR_WIDTH-1:0];
-            end
-            W_RESP: begin
-                cache_cenb = 1'b0; // enable cache
-                cache_wenb = 1'b0; // write operation
-                cache_addr = axl_if.aw_addr[D_CACHE_ADDR_WIDTH-1:0];
-            end
-            default: begin
-                cache_cenb = 1'bx;
-                cache_wenb = 1'bx;
-                cache_addr = 'x;
-            end
-        endcase
-    end
+    // assign outputs
+    assign cache_cenb           = ~(dcache_if.rd_en | dcache_if.wr_en); // active low enable
+    assign cache_wenb           = ~dcache_if.wr_en; // active low write enable
+    assign cache_addr           = dcache_if.addr[D_CACHE_ADDR_WIDTH-1:0];
+    assign cache_wdata          = dcache_if.wr_data;
+    assign cache_wstrb          = dcache_if.wr_strb;
+    assign finish_ax            = delay_cnt_r == (D_CACHE_AX_DELAY - 1);
 
-    // fake delay counter
-    assign finish_delay = (delay_cnt_r == (D_CACHE_AX_DELAY - 1'b1));
-
-    // Write Address Channel
-    assign axl_if.aw_rdy    = (state_r == IDLE); // ready to accept write address when in IDLE state
-    // Write Data Channel
-    assign axl_if.w_rdy     = (state_r == IDLE); // ready
-    // Write Response Channel
-    assign axl_if.b_vld     = (state_r == W_RESP) & finish_delay; // assert write response valid when in W_RESP state and delay is finished
-    assign axl_if.b_resp    = 2'b00; // OKAY response for writes
-    // Read Address Channel
-    assign axl_if.ar_rdy    = (state_r == IDLE); // ready to accept read address when in IDLE state
-    // Read Data Channel
-    assign axl_if.r_vld     = (state_r == R_RESP) & finish_delay; // assert read valid when in R_RESP state and delay is finished
-    assign axl_if.r_resp    = 2'b00; // OKAY response for reads
-    assign axl_if.r_data    = (state_r == R_RESP & finish_delay) ? cache_rdata : '0;
-
-    // assign logic
-    assign cache_wdata      = axl_if.w_data;
-    assign cache_wstrb      = axl_if.w_strb;
+    assign dcache_if.rd_data    = finish_ax ? cache_rdata : '0;
+    assign dcache_if.stall      = (next_state == WAIT);
 
     // ============================== //
     //         SRAM Instance
@@ -143,4 +104,5 @@ module d_cache
             .data_o(cache_rdata)
         );
     `endif
+
 endmodule

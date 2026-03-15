@@ -1,6 +1,7 @@
 # ignore the simulation build directory
 sim/behav
 sim/rv_cpu
+sim/axi_mem_test
 __pycache__
 
 # ignore the vivado project

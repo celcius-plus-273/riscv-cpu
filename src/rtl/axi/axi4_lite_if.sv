@@ -2,9 +2,6 @@ interface axi4_lite_if
 #(
     parameter ADDR_W = 32,
     parameter DATA_W = 32
-) (
-    input logic clk_i,    // are these needed...? maybe for the slave it is?
-    input logic rstn_i
 );
     // Write address
     logic [ADDR_W-1:0]    aw_addr;

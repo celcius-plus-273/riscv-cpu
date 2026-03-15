@@ -60,9 +60,10 @@ module rv_cpu
     mem_wb_s    mem_wb_w;   // MEM to WB pipeline register
 
     // ============================== //
-    //           AXI Buses
+    //       Buses (Interfaces)
     // ============================== //
-    axi4_lite_if axi4_lite_bus (.*);
+    mem_dcache_if mem_dcache_bus ();   // Memory to D Cache interface
+    axi4_lite_if axi4_lite_bus ();     // AXI4-Lite bus
 
     // ============================== //
     //            Stages
@@ -128,16 +129,14 @@ module rv_cpu
     );
 
     // Memory Stage
-    pipe_mem #(
-        .D_MEM_DEPTH(D_MEM_DEPTH)
-    ) memory_stage (
+    pipe_mem memory_stage (
         .clk_i(clk_i),
         .rstn_i(rstn_i),
         .bubble_i(hzd_pipe_w.mem_bubble),
-        .axl_if(axi4_lite_bus.master),   // AXI4-Lite interface to data memory
-        .mem_hzd_o(mem_hzd_w),   // output to hazard detection for hazard signals
-        .ex_mem_i(ex_mem_w),   // input from EX/MEM pipeline register
-        .mem_wb_o(mem_wb_w)    // output to MEM/WB pipeline register
+        .dcache_if(mem_dcache_bus.master),  // connect to D-cache interface
+        .mem_hzd_o(mem_hzd_w),              // output to hazard detection for hazard signals
+        .ex_mem_i(ex_mem_w),                // input from EX/MEM pipeline register
+        .mem_wb_o(mem_wb_w)                 // output to MEM/WB pipeline register
     );
 
     // Writeback Stage
@@ -155,11 +154,12 @@ module rv_cpu
     // D Cache
     d_cache #(
         .D_CACHE_DEPTH(D_MEM_DEPTH),
-        .D_CACHE_AX_DELAY(D_MEM_AX_DELAY) // 2 cycle delay for AXI transactions
+        .D_CACHE_AX_DELAY(D_MEM_AX_DELAY)
     ) d_cache_inst (
         .clk_i(clk_i),
         .rstn_i(rstn_i),
-        .axl_if(axi4_lite_bus.slave)
+        .dcache_if(mem_dcache_bus.slave),
+        .axl_if(axi4_lite_bus.master)
     );
 
 endmodule

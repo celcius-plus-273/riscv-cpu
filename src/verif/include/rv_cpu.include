@@ -12,6 +12,7 @@ axi/axi4_lite_if.sv
 f_unit/alu.sv
 
 // Memory modules
+memory/mem_dcache_if.sv
 memory/i_reg.sv
 memory/reg_file.sv
 memory/sram_rw_dff.sv

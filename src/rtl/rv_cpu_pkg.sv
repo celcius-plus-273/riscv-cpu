@@ -154,7 +154,7 @@ package rv_cpu_pkg;
         logic [31:0]    rd_data;
 
         logic           mem_rd_en; // for load hzd detection
-        logic           mem_busy;
+        logic           stall;
     } mem_hzd_s;
 
     typedef struct packed {
