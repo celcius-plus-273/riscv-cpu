@@ -15,7 +15,7 @@ module pipe_mem
     input logic         bubble_i,   // bubble signal from hazard unit for load-use hazards
 
     // D-cache interface (wire)
-    mem_dcache_if.master dcache_if, // interface to D-cache
+    cpu_cache_if.master dcache_if, // interface to D-cache
 
     // memory to hazard (wire)
     output mem_hzd_s    mem_hzd_o,  // MEM to Hazard interface for hazard detection
@@ -84,7 +84,7 @@ module pipe_mem
     assign dcache_if.wr_en      = ex_mem_i.mem_wr_en;
     assign dcache_if.addr       = ex_mem_i.alu_result;      // use ALU result as address for memory operations
     assign dcache_if.wr_data    = ex_mem_i.mem_wr_data;     // data to write comes from rs2 (store instructions)
-    assign dcache_if.wr_strb    = ex_mem_i.mem_mask;        // byte enable mask
+    assign dcache_if.mask       = ex_mem_i.mem_mask;        // byte enable mask
     assign mem_wb_o.mem_data    = dcache_if.rd_data;        // data read from memory goes to writeback stage
 
     // ============================== //

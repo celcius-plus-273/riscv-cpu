@@ -21,8 +21,9 @@ module reg_file
     input  logic        clk_i,
     input  logic        rstn_i,
 
-    // stall
+    // stall & flush
     input logic                 stall_i,    // stall signal from hazard unit for data hazards
+    input logic                 flush_i,    // flush signal from hazard unit for control hazards
 
     // Single Write Port
     input  logic                wen_i,
@@ -65,7 +66,7 @@ module reg_file
     // Read Logic
     // - read data will be available on the rising edge of the clock
     always_ff @( posedge clk_i or negedge rstn_i ) begin : read_ff
-        if (!rstn_i) begin
+        if (!rstn_i | flush_i) begin
             r1_data_o <= '0;
             r2_data_o <= '0;
         end

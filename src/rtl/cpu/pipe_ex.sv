@@ -14,6 +14,7 @@ module pipe_ex
     input logic     rstn_i,
 
     input logic     stall_i,    // stall signal from hazard unit for data hazards
+    input logic     bubble_i,
 
     // Execute Stage Interfaces (Wires)
     input  fwd_ex_s fwd_ex_i,      // Forwarding from hazard detection
@@ -75,7 +76,7 @@ module pipe_ex
 
     // output reg pipeline
     always_ff @(posedge clk_i or negedge rstn_i) begin
-        if (!rstn_i) begin
+        if (!rstn_i | bubble_i) begin
             ex_mem_o.pc_p4          <= '0;
             ex_mem_o.alu_result     <= '0;
             ex_mem_o.addr_result    <= '0;

@@ -18,8 +18,11 @@ package rv_cpu_pkg;
     // ============================== //
     parameter REG_FILE_DEPTH    = 32;   // Reg File size (32 registers)
     parameter I_MEM_DEPTH       = 4096;   // I-cache size
+    parameter I_MEM_AX_DELAY    = 1;     // D-cache access delay
+    parameter I_MEM_HIT_RATE    = 75;    // I-cache hit rate in percentage
     parameter D_MEM_DEPTH       = 4096;  // D-cache size
-    parameter D_MEM_AX_DELAY    = 2;     // D-cache access delay
+    parameter D_MEM_AX_DELAY    = 4;     // D-cache access delay
+    parameter D_MEM_HIT_RATE    = 25;    // D-cache hit rate in percentage
 
     // derived parameters
     parameter RF_ADDR_WIDTH     = $clog2(REG_FILE_DEPTH);
@@ -71,6 +74,11 @@ package rv_cpu_pkg;
     // ======================================= //
     //   Intermediate Signal Structs (Wire)
     // ======================================= //
+    typedef struct packed {
+        // I-cache stall
+        logic   stall;
+    } if_hzd_s;
+
     typedef struct packed {
         // Signals needed to:
         // - determine instruction type
@@ -177,12 +185,14 @@ package rv_cpu_pkg;
         // bubble, stall, and flush signals
         logic flush; // global flush signal
         // IF
-        logic if_stall;
+        // logic if_stall;
+        // logic if_bubble;
         // ID
         logic id_bubble;
         logic id_stall;
         // EX
         logic ex_stall;
+        logic ex_bubble;
         // MEM
         logic mem_bubble;
     } hzd_pipe_s;

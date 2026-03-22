@@ -1,3 +1,4 @@
+import rv_cpu_pkg::if_hzd_s;
 import rv_cpu_pkg::id_hzd_s;
 import rv_cpu_pkg::ex_hzd_s;
 import rv_cpu_pkg::mem_hzd_s;
@@ -15,7 +16,8 @@ module hazard
     // branch resolution
     input logic     is_taken,
 
-    // ID to Hazard Detection Interface
+    // Hazard Detection Interface
+    input if_hzd_s if_hzd_i,
     input id_hzd_s id_hzd_i,
     input ex_hzd_s ex_hzd_i,
     input mem_hzd_s mem_hzd_i,
@@ -25,6 +27,7 @@ module hazard
     output fwd_ex_s fwd_ex_o,
 
     // Hazard Detection to Control Interface
+    output logic if_stall_o,
     hzd_pipe_s hzd_pipe_o
 );
     // ======================== //
@@ -53,6 +56,9 @@ module hazard
     logic mem_fwd_rs1, wb_fwd_rs1;
     logic mem_fwd_rs2, wb_fwd_rs2;
 
+    // icache to branch target hazard
+    logic icache_br_stall;
+
     // ======================== //
     //        Hazard Logic
     // ======================== //
@@ -68,6 +74,9 @@ module hazard
         // If functional units are not ready you also need to stall
         // - Our ALU is single cycle so we never stall for computations
         // - If multi-cycle functional units are needed, modify this stall logic accordingly
+
+        // stall if ex is computing branch target and fetch is stalled (by icache)
+        icache_br_stall = if_hzd_i.stall & is_taken;
     end
 
     always_comb begin : ex_result_fwd_logic
@@ -98,12 +107,17 @@ module hazard
         wb_fwd_rs2 = rs2_eq_rd_wb & is_valid_wb;
     end
 
-    // Generate stall and flush signals
-    assign hzd_pipe_o.if_stall = mem_hzd_i.stall | raw_ex_load;
-    assign hzd_pipe_o.id_stall = mem_hzd_i.stall;
-    assign hzd_pipe_o.id_bubble = raw_ex_load & ~mem_hzd_i.stall;
-    assign hzd_pipe_o.ex_stall = mem_hzd_i.stall;
-    assign hzd_pipe_o.flush = is_taken;
+    // Generate stall & bubble signals
+    // assign hzd_pipe_o.if_stall      = mem_hzd_i.stall | raw_ex_load;
+    assign if_stall_o               = mem_hzd_i.stall | raw_ex_load;
+    assign hzd_pipe_o.id_stall      = mem_hzd_i.stall | icache_br_stall;
+    assign hzd_pipe_o.id_bubble     = raw_ex_load & ~mem_hzd_i.stall & ~icache_br_stall;
+    assign hzd_pipe_o.ex_stall      = mem_hzd_i.stall;
+    assign hzd_pipe_o.ex_bubble     = icache_br_stall & ~mem_hzd_i.stall;
+    assign hzd_pipe_o.mem_bubble    = mem_hzd_i.stall;
+
+    // flush signal
+    assign hzd_pipe_o.flush         = is_taken & ~if_hzd_i.stall; // only flush if branch is taken and not stalled by icache
 
     always_comb begin : fwd_out_logic
         // Prioritize mem stage forwarding (newer data)

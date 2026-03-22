@@ -1,19 +1,3 @@
-// ============================== //
-//         Package Imports
-// ============================== //
-// // Wire Interfaces
-// import rv_cpu_pkg::id_ctl_s;    // decode to control
-// import rv_cpu_pkg::ctl_id_s;    // control to decode
-// import rv_cpu_pkg::id_hzd_s;    // decode to hazard
-
-// // Pipeline Registers
-// import rv_cpu_pkg::if_id_s;    // IF to ID interface
-// import rv_cpu_pkg::id_ex_s;
-// import rv_cpu_pkg::wb_id_s;
-
-// // Enums
-// import rv_cpu_pkg::imm_sel_e;
-
 module pipe_id
 #(
     // parameters
@@ -44,8 +28,9 @@ module pipe_id
     input wb_id_s       wb_id_i,    // WB to ID interface
     output id_ex_s      id_ex_o     // ID to EX Interface
 );
-
+    // Package Import
     import rv_cpu_pkg::*;
+
     // ======================== //
     //       DECODE STAGE
     // ======================== //
@@ -159,7 +144,7 @@ module pipe_id
         // - there is a scenario where r1 and r2 and enabled and data is read from RF
         // - however, because all control signals are cleared on a flush, this data is just
         //   bubbling through the pipeline and will not do anything... it will consume power though
-        // .en_i(~flush_i),
+        .flush_i(flush_i),  // flush the register file read when there is a control hazard
         .stall_i(stall_i),  // stall the register file read when there is a data hazard and we need to stall the pipeline
 
         // write port (connected to writeback stage)

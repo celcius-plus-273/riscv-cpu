@@ -38,7 +38,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 from tb_helpers import (
-    CLK_PERIOD_NS, PIPE_DEPTH,
+    CLK_PERIOD_NS, PADDING, PIPE_DEPTH,
     NOP, ADD, SUB, AND, XOR, SRL,
     ADDI, ANDI, SLLI, SRLI, LW, SW,
     BEQ, BNE, BLT, BGE,
@@ -61,7 +61,7 @@ async def _run(dut, program, *, reg_init={}, dmem_init={}, n_cycles,
         write_reg(dut, reg, val)
     for wa, val in dmem_init.items():
         write_dmem(dut, wa, val)
-    await clock_n(dut, n_cycles)
+    await clock_n(dut, n_cycles + PADDING)
 
     for reg, exp in exp_regs.items():
         got   = read_reg(dut, reg)

@@ -30,34 +30,22 @@ module sram_rw_dff
     logic [WIDTH-1 : 0] mem_array [DEPTH];
 
     // ff read and write logic
-    always @( posedge clk_i or negedge rstn_i ) begin : read_write_ff
-        // reset memory
-        if (!rstn_i) begin
-            // reset mem array
-            for (i = 0; i < DEPTH; i += 1) begin
-                mem_array[i] <= '0;
-            end
-            // reset output ff
-            data_o <= '0;
-        end
-        // normal behavior
-        else begin
-            // memory can only read OR write (can't do both)
-            if (~cenb_i) begin
-                if (wenb_i) begin
-                    // wenb = 1: READ
-                    for (i = 0; i < NUM_BYTES; i += 1) begin
-                        if (mask_i[i]) begin
-                            data_o[((i+1)*8)-1 -: 8] <= mem_array[addr_i >> 2][((i+1)*8)-1 -: 8];
-                        end
+    always @( posedge clk_i) begin : read_write_ff
+        // memory can only read OR write (can't do both)
+        if (~cenb_i) begin
+            if (wenb_i) begin
+                // wenb = 1: READ
+                for (i = 0; i < NUM_BYTES; i += 1) begin
+                    if (mask_i[i]) begin
+                        data_o[((i+1)*8)-1 -: 8] <= mem_array[addr_i >> 2][((i+1)*8)-1 -: 8];
                     end
                 end
-                else begin
-                    // wenb = 0: WRITE
-                    for (i = 0; i < NUM_BYTES; i += 1) begin
-                        if (mask_i[i]) begin
-                            mem_array[addr_i >> 2][((i+1)*8)-1 -: 8] <= data_i[((i+1)*8)-1 -: 8];
-                        end
+            end
+            else begin
+                // wenb = 0: WRITE
+                for (i = 0; i < NUM_BYTES; i += 1) begin
+                    if (mask_i[i]) begin
+                        mem_array[addr_i >> 2][((i+1)*8)-1 -: 8] <= data_i[((i+1)*8)-1 -: 8];
                     end
                 end
             end

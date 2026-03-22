@@ -42,8 +42,9 @@ from cocotb.triggers import RisingEdge
 # ---------------------------------------------------------------------------
 CLK_PERIOD_NS = 10   # 100 MHz
 N_NOPS        = 4    # NOPs between dependent instructions (pipeline depth - 1)
-PIPE_DEPTH    = 7    # extra clock margin after the last instruction
-
+PIPE_DEPTH    = 7   # extra clock margin after the last instruction
+PADDING       = 20
+I_MEM_DEPTH   = 4096 # instruction memory depth
 
 # ---------------------------------------------------------------------------
 # R-type instruction encoding
@@ -63,7 +64,6 @@ def _r(funct7: int, rs2: int, rs1: int, funct3: int, rd: int) -> int:
     )
 
 
-NOP  = _r(0x00, 0, 0, 0b000, 0)  # add x0, x0, x0
 
 def ADD (rd, rs1, rs2): return _r(0x00, rs2, rs1, 0b000, rd)
 def SUB (rd, rs1, rs2): return _r(0x20, rs2, rs1, 0b000, rd)
@@ -94,10 +94,11 @@ def _i(imm12: int, rs1: int, funct3: int, rd: int, opcode: int) -> int:
         (opcode  & 0x7F)
     )
 
-
 def ADDI (rd: int, rs1: int, imm: int) -> int:
     """ADDI  rd, rs1, imm  — rd = rs1 + sign_extend(imm)"""
     return _i(imm, rs1, 0b000, rd, _OPCODE_I_ARITH)
+
+NOP  = ADDI(0, 0, 0)  # add x0, x0, x0
 
 def SLTI (rd: int, rs1: int, imm: int) -> int:
     """SLTI  rd, rs1, imm  — rd = (signed(rs1) < signed(sign_extend(imm))) ? 1 : 0"""
@@ -339,19 +340,21 @@ def load_imem(dut, instructions: list) -> None:
     program[i] is placed at imem[i * 4] to match the byte-addressed PC.
     All remaining slots are filled with NOPs.
     """
-    imem = dut.fetch_stage.i_reg_inst.mem
+    # imem = dut.fetch_stage.i_reg_inst.mem
+    imem = dut.i_cache_inst.sram_inst.mem_array
 
-    for i in range(64):
+    for i in range(I_MEM_DEPTH):
         imem[i].value = NOP
 
     for i, instr in enumerate(instructions):
         pc_idx = i # note that this is not idx*4 becuase i_mem uses pc >> 2
-        # print(f"Loading instruction 0x{instr:08x} at imem[{pc_idx}] (PC=0x{pc_idx:02x})")
-        assert pc_idx < 64, (
-            f"Program too large for imem (depth=64): "
+        assert i < I_MEM_DEPTH, (
+            f"Program too large for imem (depth={I_MEM_DEPTH}): "
             f"instruction {i} needs PC={pc_idx}"
         )
         imem[pc_idx].value = instr
+        # print(f"Loading instruction 0x{instr:08x} at imem[{pc_idx}] (PC=0x{pc_idx:02x})")
+        # print(f"Loading instruction 0x{imem[pc_idx].value} at imem[{pc_idx}] (PC=0x{pc_idx:02x})")
 
 
 # ---------------------------------------------------------------------------
@@ -375,7 +378,15 @@ def write_dmem(dut, word_addr: int, value: int) -> None:
     # mem_handle = dut.memory_stage.sram_inst.mem_array
     mem_handle = dut.d_cache_inst.sram_inst.mem_array
     mem_handle[word_addr].value = u32(value)
+    # print(f"Loading data 0x{mem_handle[word_addr].value} at dmem[{word_addr}] (byte addr 0x{word_addr:04x})")
 
+
+def clear_dmem(dut) -> None:
+    """Clear the entire data memory by writing zeros to all words."""
+    # mem_handle = dut.memory_stage.sram_inst.mem_array
+    mem_handle = dut.d_cache_inst.sram_inst.mem_array
+    for word_addr in range(len(mem_handle)):
+        mem_handle[word_addr].value = u32(0)
 
 # ---------------------------------------------------------------------------
 # Simulation drivers
@@ -384,11 +395,11 @@ async def do_reset(dut, cycles: int = 4) -> None:
     """Assert active-low reset for `cycles` rising edges, then release."""
     dut.rstn_i.value     = 0
     dut.riscv_en_i.value = 0
+    clear_dmem(dut)  # ensure data memory is cleared after reset
     for _ in range(cycles):
         await RisingEdge(dut.clk_i)
     dut.rstn_i.value     = 1
     dut.riscv_en_i.value = 1
-
 
 async def clock_n(dut, n: int) -> None:
     """Advance simulation by n rising clock edges."""
@@ -412,7 +423,7 @@ async def run_r_test(dut, program: list, reg_init: dict, expected: dict) -> None
     await do_reset(dut)
     for reg_num, val in reg_init.items():
         write_reg(dut, reg_num, val)
-    await clock_n(dut, len(program) + PIPE_DEPTH)
+    await clock_n(dut, len(program) + PIPE_DEPTH + PADDING)
     for reg_num, exp_val in expected.items():
         got     = read_reg(dut, reg_num)
         exp_u32 = u32(exp_val)
@@ -473,7 +484,7 @@ async def run_load_test(
         write_reg(dut, reg_num, val)
     for word_addr, val in dmem_init.items():
         write_dmem(dut, word_addr, val)
-    await clock_n(dut, len(program) + PIPE_DEPTH)
+    await clock_n(dut, len(program) + PIPE_DEPTH + 20)
     for reg_num, exp_val in expected.items():
         got     = read_reg(dut, reg_num)
         exp_u32 = u32(exp_val)

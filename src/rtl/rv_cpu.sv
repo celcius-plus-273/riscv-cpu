@@ -35,10 +35,12 @@ module rv_cpu
     // ============================== //
     // logic        stall_w;
     // logic        flush_w;
+    logic if_stall_w;
 
     // ============================== //
     //    Module Interfaces (wire)
     // ============================== //
+    if_hzd_s    if_hzd_w;    // IF to Hazard Detection
     id_ctl_s    id_ctl_w;    // ID to Control
     ctl_id_s    ctl_id_w;    // Control to ID
     id_hzd_s    id_hzd_w;    // ID to Hazard Detection
@@ -62,21 +64,22 @@ module rv_cpu
     // ============================== //
     //       Buses (Interfaces)
     // ============================== //
-    mem_dcache_if mem_dcache_bus ();   // Memory to D Cache interface
+    cpu_cache_if  mem_dcache_bus ();   // Memory to D Cache interface
+    cpu_cache_if  if_icache_bus ();  // IF stage to I Cache interface
     axi4_lite_if axi4_lite_bus ();     // AXI4-Lite bus
 
     // ============================== //
     //            Stages
     // ============================== //
     // Fetch Stage
-    pipe_if #(
-        .I_MEM_DEPTH(I_MEM_DEPTH)
-    ) fetch_stage (
+    pipe_if fetch_stage (
         .clk_i(clk_i),
         .rstn_i(rstn_i),
-        .en_i(~hzd_pipe_w.if_stall & riscv_en_i),   // enable is inverse of stall
+        .en_i(~if_stall_w & riscv_en_i),   // enable is inverse of stall
         .flush_i(hzd_pipe_w.flush),              // flush signal for control hazards
+        .icache_if(if_icache_bus.master),       // connect to I-cache interface
         .ex_if_i(ex_if_w),              // for branch target update
+        .if_hzd_o(if_hzd_w),            // output to hazard detection for hazard signals
         .if_id_o(if_id_w)               // output to IF/ID pipeline register
     );
 
@@ -108,12 +111,14 @@ module rv_cpu
     hazard hazard_unit (
         .clk_i(clk_i),
         .is_taken(ex_if_w.pc_src),   // input for branch resolution from EX stage
+        .if_hzd_i(if_hzd_w),   // input from IF stage for hazard detection
         .id_hzd_i(id_hzd_w),   // input from ID stage for hazard detection
         .ex_hzd_i(ex_hzd_w),   // input from EX stage for hazard detection
         .mem_hzd_i(mem_hzd_w), // input from MEM stage for hazard detection
         .wb_hzd_i(wb_hzd_w),   // input from WB stage for hazard detection
         .fwd_ex_o(fwd_ex_w),   // forwarding signals to EX stage
-        .hzd_pipe_o(hzd_pipe_w) // hazard signals to pipeline for stall/flush
+        .hzd_pipe_o(hzd_pipe_w), // hazard signals to pipeline for stall/flush
+        .if_stall_o(if_stall_w) // stall signal to IF stage
     );
 
     // Execute Stage
@@ -121,6 +126,7 @@ module rv_cpu
         .clk_i(clk_i),
         .rstn_i(rstn_i),
         .stall_i(hzd_pipe_w.ex_stall),  // stall signal for data hazards
+        .bubble_i(hzd_pipe_w.ex_bubble),  // bubble signal for control hazards (icache stall)
         .ex_hzd_o(ex_hzd_w),    // output to hazard detection for hazard signals
         .fwd_ex_i(fwd_ex_w),    // input from hazard detection for forwarding
         .ex_if_o(ex_if_w),     // output to EX/IF for branch target
@@ -151,14 +157,27 @@ module rv_cpu
     // ============================== //
     //        Memory Instances
     // ============================== //
+    // I Cache
+    cache_simple #(
+        .CACHE_DEPTH(I_MEM_DEPTH),
+        .CACHE_AX_DELAY(I_MEM_AX_DELAY),
+        .HIT_RATE(I_MEM_HIT_RATE)
+    ) i_cache_inst (
+        .clk_i(clk_i),
+        .rstn_i(rstn_i),
+        .cache_if(if_icache_bus.slave),
+        .axl_if(axi4_lite_bus.master)
+    );
+
     // D Cache
-    d_cache #(
-        .D_CACHE_DEPTH(D_MEM_DEPTH),
-        .D_CACHE_AX_DELAY(D_MEM_AX_DELAY)
+    cache_simple #(
+        .CACHE_DEPTH(D_MEM_DEPTH),
+        .CACHE_AX_DELAY(D_MEM_AX_DELAY),
+        .HIT_RATE(D_MEM_HIT_RATE)
     ) d_cache_inst (
         .clk_i(clk_i),
         .rstn_i(rstn_i),
-        .dcache_if(mem_dcache_bus.slave),
+        .cache_if(mem_dcache_bus.slave),
         .axl_if(axi4_lite_bus.master)
     );
 

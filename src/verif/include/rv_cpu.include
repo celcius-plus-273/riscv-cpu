@@ -12,11 +12,11 @@ axi/axi4_lite_if.sv
 f_unit/alu.sv
 
 // Memory modules
-memory/mem_dcache_if.sv
-memory/i_reg.sv
+memory/cpu_cache_if.sv
 memory/reg_file.sv
+memory/i_reg.sv
 memory/sram_rw_dff.sv
-memory/d_cache.sv
+memory/cache_simple.sv
 
 // Pipeline stages
 cpu/control.sv
